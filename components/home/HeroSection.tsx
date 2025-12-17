@@ -3,6 +3,7 @@
 import React from 'react';
 import { Box, Container, Typography, Button, Stack } from '@mui/material';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
+import Link from 'next/link';
 
 const HeroSection = () => {
   return (
@@ -46,6 +47,8 @@ const HeroSection = () => {
 
           <Box pt={2}>
             <Button 
+              component={Link}
+              href="/deposit"
               variant="contained" 
               size="large" 
               endIcon={<RocketLaunchIcon />}
@@ -59,7 +62,6 @@ const HeroSection = () => {
                   boxShadow: '0 0 30px rgba(76, 175, 80, 0.6)',
                 }
               }}
-              onClick={() => console.log('Launch App')}
             >
               Launch App
             </Button>
