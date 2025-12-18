@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -111,8 +111,20 @@ const DepositWizard = () => {
   });
   const [exchangeRate, setExchangeRate] = useState<ExchangeRate | null>(null);
   const [loadingRate, setLoadingRate] = useState(true);
-  // Mock wallet balance - will be fetched from API in the future
+  // Mock wallet connection state - will be connected to real wallet in the future
+  const [isWalletConnected, setIsWalletConnected] = useState(false);
   const [walletBalance] = useState('1,250.00');
+  const [mounted, setMounted] = useState(false);
+
+  // Fix hydration error
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const handleConnectWallet = () => {
+    // This will be replaced with actual wallet connection logic
+    setIsWalletConnected(true);
+  };
 
   // Fetch USDC -> THB exchange rate
   React.useEffect(() => {
@@ -204,166 +216,224 @@ const DepositWizard = () => {
     alert('Transaction would be signed here!\n\n' + JSON.stringify(depositData, null, 2));
   };
 
-  const handleAmountChange = (delta: number) => {
-    const currentAmount = parseFloat(depositData.amount) || 0;
-    const newAmount = Math.max(0, currentAmount + delta);
-    setDepositData({ ...depositData, amount: newAmount.toString() });
-  };
-
   // =====================
   // Step 1: Configuration
   // =====================
 
-  const renderStep1 = () => (
-    <Box sx={{ maxWidth: 600, mx: 'auto' }}>
-      <Card sx={{ bgcolor: '#1e1e1e', border: '1px solid #333' }}>
-        <CardContent sx={{ p: 4 }}>
-          <Box display="flex" alignItems="center" gap={2} mb={3}>
-            <Wallet size={28} color="#4caf50" />
-            <Typography variant="h5" fontWeight="bold">
-              Configure Your Deposit
-            </Typography>
-          </Box>
+  const renderStep1 = () => {
+    if (!mounted) {
+      return (
+        <Box sx={{ maxWidth: 1100, mx: 'auto', minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Typography color="text.secondary">Loading...</Typography>
+        </Box>
+      );
+    }
 
-          {/* Wallet Balance */}
-          <Box
-            sx={{
-              mb: 4,
-              p: 2.5,
-              bgcolor: '#0a0a0a',
-              borderRadius: 2,
-              border: '1px solid #2d2d2d',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <Box flex={1}>
-              <Box display="flex" alignItems="center" gap={1} mb={0.5}>
-                <Typography variant="caption" color="text.secondary">
-                  Your Wallet Balance
-                </Typography>
-                <Box
-                  sx={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    bgcolor: 'primary.main',
-                    boxShadow: '0 0 8px rgba(76, 175, 80, 0.6)',
-                  }}
-                />
-              </Box>
-              <Typography variant="h5" fontWeight={700} color="primary.main">
-                {walletBalance} USDC
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.6 }}>
-                Wallet Connected
-              </Typography>
-            </Box>
+    return (
+    <Box sx={{ maxWidth: 1100, mx: 'auto' }}>
+      {/* Header */}
+      <Box display="flex" alignItems="center" gap={1.5} mb={2}>
+        <Wallet size={20} color="#4caf50" />
+        <Typography variant="body1" fontWeight="bold" fontSize="1.1rem">
+          Configure Your Deposit
+        </Typography>
+      </Box>
+
+      {/* Two Column Layout */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+        {/* Left Column */}
+        <Box>
+          <Card sx={{ bgcolor: '#1e1e1e', border: '1px solid #333', height: '100%' }}>
+            <CardContent sx={{ p: 2, pb: 2 }}>
+
+          {/* Wallet Balance / Connect Wallet */}
+          {isWalletConnected ? (
             <Box
               sx={{
+                mb: 2,
+                p: 1.8,
+                bgcolor: '#0a0a0a',
+                borderRadius: 2,
+                border: '1px solid #2d2d2d',
                 display: 'flex',
+                justifyContent: 'space-between',
                 alignItems: 'center',
-                justifyContent: 'center',
-                opacity: 0.3,
               }}
             >
-              <Wallet size={40} color="#4caf50" />
-            </Box>
-          </Box>
-
-          {/* Amount Input */}
-          <Box mb={4}>
-            <Typography variant="body2" color="text.secondary" mb={1.5} fontWeight={600}>
-              Deposit Amount (USDC)
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box flex={1}>
+                <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                  <Typography variant="caption" color="text.secondary">
+                    Your Wallet Balance
+                  </Typography>
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      bgcolor: 'primary.main',
+                      boxShadow: '0 0 8px rgba(76, 175, 80, 0.6)',
+                    }}
+                  />
+                </Box>
+                <Typography variant="body1" fontSize="1.3rem" fontWeight={700} color="primary.main">
+                  {walletBalance} USDC
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.6 }}>
+                  Wallet Connected
+                </Typography>
+              </Box>
               <Box
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 1.5,
-                  bgcolor: '#0a0a0a',
-                  border: '1px solid #333',
-                  borderRadius: 2,
-                  p: 1,
-                  flex: 1,
+                  justifyContent: 'center',
+                  opacity: 0.3,
                 }}
               >
+                <Wallet size={40} color="#4caf50" />
+              </Box>
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                mb: 2,
+                p: 1.8,
+                bgcolor: '#0a0a0a',
+                borderRadius: 2,
+                border: '2px dashed #2d2d2d',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 2,
+                textAlign: 'center',
+              }}
+            >
+              <Box
+                sx={{
+                  bgcolor: '#1e1e1e',
+                  borderRadius: '50%',
+                  p: 1.5,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Wallet size={28} color="#666" />
+              </Box>
+              <Box>
+                <Typography variant="body1" fontWeight={600} mb={0.5}>
+                  Connect Your Wallet
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Please connect your wallet to start depositing
+                </Typography>
+              </Box>
+              <Button
+                variant="contained"
+                onClick={handleConnectWallet}
+                sx={{
+                  mt: 0.5,
+                  bgcolor: 'primary.main',
+                  color: 'black',
+                  fontWeight: 700,
+                  px: 3,
+                  py: 1,
+                  '&:hover': {
+                    bgcolor: 'primary.dark',
+                  },
+                }}
+              >
+                Connect Wallet
+              </Button>
+            </Box>
+          )}
+
+          {/* Amount Input */}
+          <Box mb={2} sx={{ opacity: isWalletConnected ? 1 : 0.4, pointerEvents: isWalletConnected ? 'auto' : 'none' }}>
+            <Typography variant="body2" color="text.secondary" mb={1} fontWeight={600}>
+              Deposit Amount
+            </Typography>
+            {/* DeFi-style Input with MAX button */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                bgcolor: '#0a0a0a',
+                border: '2px solid #2d2d2d',
+                borderRadius: 2,
+                p: 1.8,
+                transition: 'border-color 0.2s',
+                '&:hover': {
+                  borderColor: '#404040',
+                },
+                '&:focus-within': {
+                  borderColor: 'primary.main',
+                },
+              }}
+            >
+              <TextField
+                fullWidth
+                type="number"
+                placeholder="0.0"
+                value={depositData.amount}
+                onChange={(e) => setDepositData({ ...depositData, amount: e.target.value })}
+                InputProps={{
+                  sx: {
+                    bgcolor: 'transparent',
+                    '& input': {
+                      fontSize: '1.8rem',
+                      fontWeight: 700,
+                      color: 'primary.main',
+                      padding: 0,
+                      MozAppearance: 'textfield',
+                    },
+                    '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
+                      WebkitAppearance: 'none',
+                      margin: 0,
+                    },
+                    '& fieldset': { border: 'none' },
+                  },
+                }}
+              />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, ml: 2 }}>
                 <Button
-                  onClick={() => handleAmountChange(-10)}
+                  onClick={() => setDepositData({ ...depositData, amount: walletBalance.replace(/,/g, '') })}
                   sx={{
-                    minWidth: 48,
-                    height: 48,
+                    minWidth: 'auto',
+                    px: 2,
+                    py: 0.5,
                     bgcolor: '#1e1e1e',
                     color: 'primary.main',
-                    fontSize: '1.5rem',
+                    fontSize: '0.75rem',
                     fontWeight: 700,
-                    borderRadius: 1.5,
+                    borderRadius: 1,
+                    border: '1px solid #333',
                     '&:hover': {
                       bgcolor: '#2d2d2d',
+                      borderColor: 'primary.main',
                     },
                   }}
                 >
-                  −
+                  MAX
                 </Button>
-                <TextField
-                  fullWidth
-                  type="number"
-                  placeholder="0"
-                  value={depositData.amount}
-                  onChange={(e) => setDepositData({ ...depositData, amount: e.target.value })}
-                  InputProps={{
-                    sx: {
-                      bgcolor: 'transparent',
-                      '& input': {
-                        fontSize: '1.5rem',
-                        fontWeight: 700,
-                        textAlign: 'center',
-                        MozAppearance: 'textfield',
-                      },
-                      '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
-                        WebkitAppearance: 'none',
-                        margin: 0,
-                      },
-                      '& fieldset': { border: 'none' },
-                    },
-                  }}
-                />
-                <Button
-                  onClick={() => handleAmountChange(10)}
-                  sx={{
-                    minWidth: 48,
-                    height: 48,
-                    bgcolor: 'primary.main',
-                    color: 'black',
-                    fontSize: '1.5rem',
-                    fontWeight: 700,
-                    borderRadius: 1.5,
-                    '&:hover': {
-                      bgcolor: 'primary.dark',
-                    },
-                  }}
+                <Typography
+                  variant="body1"
+                  color="text.secondary"
+                  sx={{ fontWeight: 600, fontSize: '1.1rem' }}
                 >
-                  +
-                </Button>
+                  USDC
+                </Typography>
               </Box>
-              <Typography
-                variant="h6"
-                color="text.secondary"
-                sx={{ fontWeight: 600, minWidth: 70 }}
-              >
-                USDC
-              </Typography>
             </Box>
             {/* THB Conversion */}
             {exchangeRate && depositData.amount && (
               <Box
                 sx={{
-                  mt: 1.5,
+                  mt: 1,
                   p: 2,
                   bgcolor: '#1e1e1e',
-                  borderRadius: 1.5,
+                  borderRadius: 2,
                   border: '1px solid #2d2d2d',
                 }}
               >
@@ -382,67 +452,75 @@ const DepositWizard = () => {
             )}
           </Box>
 
-          {/* Duration Selection */}
-          <Box mb={4}>
-            <Typography variant="body2" color="text.secondary" mb={1.5} fontWeight={600}>
-              Lock Duration
-            </Typography>
-            <ToggleButtonGroup
-              value={depositData.duration}
-              exclusive
-              onChange={(_, value) => value && setDepositData({ ...depositData, duration: value })}
-              fullWidth
-              sx={{
-                '& .MuiToggleButton-root': {
-                  py: 2,
-                  border: '1px solid #333',
-                  bgcolor: '#0a0a0a',
-                  color: 'text.secondary',
-                  '&.Mui-selected': {
-                    bgcolor: 'primary.main',
-                    color: 'black',
-                    fontWeight: 700,
-                    borderColor: 'primary.main',
-                    '&:hover': {
-                      bgcolor: 'primary.dark',
-                    },
-                  },
-                  '&:hover': {
-                    bgcolor: '#1e1e1e',
-                    borderColor: '#555',
-                  },
-                },
-              }}
-            >
-              <ToggleButton value={7}>7 Days</ToggleButton>
-              <ToggleButton value={30}>30 Days</ToggleButton>
-              <ToggleButton value={90}>90 Days</ToggleButton>
-            </ToggleButtonGroup>
-          </Box>
+            </CardContent>
+          </Card>
+        </Box>
 
-          {/* Lock Period Timeline */}
-          {depositData.duration && (
-            <Box
-              sx={{
-                bgcolor: '#0a0a0a',
-                p: 3,
-                borderRadius: 2,
-                border: '2px solid #2d2d2d',
-                position: 'relative',
-                overflow: 'hidden',
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: '3px',
-                  background: 'linear-gradient(90deg, #4caf50 0%, #81c784 100%)',
-                },
-              }}
-            >
+        {/* Right Column */}
+        <Box>
+          <Card sx={{ bgcolor: '#1e1e1e', border: '1px solid #333', height: '100%' }}>
+            <CardContent sx={{ p: 2, pb: 2 }}>
+              {/* Duration Selection */}
+              <Box mb={2} sx={{ opacity: isWalletConnected ? 1 : 0.4, pointerEvents: isWalletConnected ? 'auto' : 'none' }}>
+                <Typography variant="body2" color="text.secondary" mb={1} fontWeight={600}>
+                  Lock Duration
+                </Typography>
+                <ToggleButtonGroup
+                  value={depositData.duration}
+                  exclusive
+                  onChange={(_, value) => value && setDepositData({ ...depositData, duration: value })}
+                  fullWidth
+                  sx={{
+                    '& .MuiToggleButton-root': {
+                      py: 1.3,
+                      border: '1px solid #333',
+                      bgcolor: '#0a0a0a',
+                      color: 'text.secondary',
+                      '&.Mui-selected': {
+                        bgcolor: 'primary.main',
+                        color: 'black',
+                        fontWeight: 700,
+                        borderColor: 'primary.main',
+                        '&:hover': {
+                          bgcolor: 'primary.dark',
+                        },
+                      },
+                      '&:hover': {
+                        bgcolor: '#1e1e1e',
+                        borderColor: '#555',
+                      },
+                    },
+                  }}
+                >
+                  <ToggleButton value={7}>7 Days</ToggleButton>
+                  <ToggleButton value={30}>30 Days</ToggleButton>
+                  <ToggleButton value={90}>90 Days</ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+
+              {/* Lock Period Timeline */}
+              {depositData.duration ? (
+                <Box
+                  sx={{
+                    bgcolor: '#0a0a0a',
+                    p: 2,
+                    borderRadius: 2,
+                    border: '2px solid #2d2d2d',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '3px',
+                      background: 'linear-gradient(90deg, #4caf50 0%, #81c784 100%)',
+                    },
+                  }}
+                >
               {/* Header */}
-              <Box display="flex" alignItems="center" gap={1} mb={3}>
+              <Box display="flex" alignItems="center" gap={1} mb={2}>
                 <Calendar size={18} color="#4caf50" />
                 <Typography variant="caption" color="primary.main" fontWeight={700} letterSpacing={0.5}>
                   LOCK PERIOD TIMELINE
@@ -450,12 +528,12 @@ const DepositWizard = () => {
               </Box>
 
               {/* Timeline Range */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
                 {/* Start Date */}
                 <Box
                   sx={{
                     flex: 1,
-                    p: 2,
+                    p: 1.5,
                     bgcolor: '#1e1e1e',
                     borderRadius: 1.5,
                     border: '1px solid #333',
@@ -518,7 +596,7 @@ const DepositWizard = () => {
                 <Box
                   sx={{
                     flex: 1,
-                    p: 2,
+                    p: 1.5,
                     bgcolor: 'primary.main',
                     borderRadius: 1.5,
                     border: '2px solid #4caf50',
@@ -543,8 +621,8 @@ const DepositWizard = () => {
               {/* Additional Info */}
               <Box
                 sx={{
-                  mt: 2,
-                  pt: 2,
+                  mt: 1.5,
+                  pt: 1.5,
                   borderTop: '1px solid #2d2d2d',
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -564,13 +642,33 @@ const DepositWizard = () => {
                     fontSize: '0.7rem',
                   }}
                 />
+                </Box>
               </Box>
-            </Box>
-          )}
-        </CardContent>
-      </Card>
+            ) : (
+              <Box
+                sx={{
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: 200,
+                  opacity: 0.5,
+                }}
+              >
+                <Calendar size={48} color="#333" />
+                <Typography variant="body2" color="text.secondary" mt={2} textAlign="center">
+                  Select a duration to see your lock period timeline
+                </Typography>
+              </Box>
+            )}
+            </CardContent>
+          </Card>
+        </Box>
+      </Box>
     </Box>
-  );
+    );
+  };
 
   // =====================
   // Step 2: Select Tier
@@ -883,10 +981,10 @@ const DepositWizard = () => {
   // =====================
 
   return (
-    <Box sx={{ py: 6, px: 2 }}>
+    <Box sx={{ py: 3, px: 2 }}>
       <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
         {/* Stepper */}
-        <Box sx={{ mb: 6 }}>
+        <Box sx={{ mb: 3 }}>
           <Stepper activeStep={activeStep} alternativeLabel>
             {STEPS.map((label) => (
               <Step key={label}>
@@ -922,7 +1020,7 @@ const DepositWizard = () => {
         </Box>
 
         {/* Step Content */}
-        <Box sx={{ mb: 4 }}>
+        <Box sx={{ mb: 3 }}>
           {activeStep === 0 && renderStep1()}
           {activeStep === 1 && renderStep2()}
           {activeStep === 2 && renderStep3()}
