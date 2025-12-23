@@ -1,7 +1,6 @@
 'use client';
 
-import React from 'react';
-import { AppBar, Toolbar, Typography, Button, Box, Stack, Container } from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Stack, Container } from '@mui/material';
 import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 
 const Navbar = () => {
@@ -38,34 +37,11 @@ const Navbar = () => {
             </Stack>
 
             <Stack direction="row" alignItems="center" spacing={4}>
-              
-              <Stack 
-                direction="row" 
-                spacing={4} 
-                sx={{ display: { xs: 'none', md: 'flex' } }}
-              >
-                {['Vaults', 'Strategies', 'Risks', 'Docs'].map((item) => (
-                  <Box 
-                    key={item} 
-                    component="a" 
-                    href="#"
-                    sx={{ 
-                      color: 'text.secondary', 
-                      textDecoration: 'none', 
-                      fontSize: '0.95rem',
-                      fontWeight: 500,
-                      transition: 'color 0.2s',
-                      '&:hover': { color: '#fff' }
-                    }}
-                  >
-                    {item}
-                  </Box>
-                ))}
-              </Stack>
 
               <Button 
                 variant="outlined" 
                 size="small"
+                href='/deposit'
                 sx={{ 
                   borderColor: 'rgba(255,255,255,0.2)', 
                   color: '#fff',
