@@ -17,6 +17,7 @@ import {
   FormControlLabel,
   Chip,
   Alert,
+  Checkbox,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -26,6 +27,7 @@ import {
   Wallet,
   CheckCircle,
 } from 'lucide-react';
+import { useWallet } from '@/contexts/WalletContext';
 
 // =====================
 // TypeScript Interfaces
@@ -102,6 +104,7 @@ const STEPS = ['Configure Deposit', 'Select Risk Tier', 'Review & Confirm'];
 // =====================
 
 const DepositWizard = () => {
+  const { isConnected: isWalletConnected, balance: walletBalance, connectWallet } = useWallet();
   const [activeStep, setActiveStep] = useState(0);
   const [depositData, setDepositData] = useState<DepositData>({
     amount: '',
@@ -111,10 +114,8 @@ const DepositWizard = () => {
   });
   const [exchangeRate, setExchangeRate] = useState<ExchangeRate | null>(null);
   const [loadingRate, setLoadingRate] = useState(true);
-  // Mock wallet connection state - will be connected to real wallet in the future
-  const [isWalletConnected, setIsWalletConnected] = useState(false);
-  const [walletBalance] = useState('1,250.00');
   const [mounted, setMounted] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   // Fix hydration error
   useEffect(() => {
@@ -122,8 +123,7 @@ const DepositWizard = () => {
   }, []);
 
   const handleConnectWallet = () => {
-    // This will be replaced with actual wallet connection logic
-    setIsWalletConnected(true);
+    connectWallet();
   };
 
   // Fetch USDC -> THB exchange rate
@@ -204,10 +204,12 @@ const DepositWizard = () => {
   const handleNext = () => {
     if (activeStep === 0 && !isStep1Valid) return;
     if (activeStep === 1 && !isStep2Valid) return;
+    setTermsAccepted(false);
     setActiveStep((prev) => prev + 1);
   };
 
   const handleBack = () => {
+    setTermsAccepted(false);
     setActiveStep((prev) => prev - 1);
   };
 
@@ -949,20 +951,58 @@ const DepositWizard = () => {
           </Alert>
         )}
 
+        {/* Terms & Conditions Checkbox */}
+        <Card sx={{ bgcolor: '#1a1a1a', border: '1px solid #333', mb: 3 }}>
+          <CardContent sx={{ p: 3 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  sx={{
+                    color: '#666',
+                    '&.Mui-checked': {
+                      color: 'primary.main',
+                    },
+                  }}
+                />
+              }
+              label={
+                <Box>
+                  <Typography variant="body1" fontWeight={600}>
+                    I understand and accept the terms & conditions
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    I acknowledge the risks, penalties, and understand that funds will be locked for {depositData.duration} days.
+                    {depositData.tier === 'pro' && ' Missing even 1 day will result in TOTAL LOSS of yields.'}
+                    {depositData.tier === 'starter' && ' Missing days will result in a 50% penalty.'}
+                  </Typography>
+                </Box>
+              }
+              sx={{ alignItems: 'flex-start', m: 0 }}
+            />
+          </CardContent>
+        </Card>
+
         {/* Confirm Button */}
         <Button
           fullWidth
           variant="contained"
           size="large"
           onClick={handleConfirmDeposit}
+          disabled={!termsAccepted}
           sx={{
             py: 2,
             fontSize: '1.1rem',
             fontWeight: 700,
-            bgcolor: 'primary.main',
-            color: 'black',
+            bgcolor: termsAccepted ? 'primary.main' : '#2d2d2d',
+            color: termsAccepted ? 'black' : '#666',
             '&:hover': {
-              bgcolor: 'primary.dark',
+              bgcolor: termsAccepted ? 'primary.dark' : '#2d2d2d',
+            },
+            '&.Mui-disabled': {
+              bgcolor: '#2d2d2d',
+              color: '#666',
             },
           }}
         >
@@ -970,7 +1010,7 @@ const DepositWizard = () => {
         </Button>
 
         <Typography variant="caption" color="text.secondary" textAlign="center" display="block" mt={2}>
-          By confirming, you agree to the terms and understand the risks.
+          {termsAccepted ? 'Ready to proceed with your deposit' : 'Please accept the terms to continue'}
         </Typography>
       </Box>
     );

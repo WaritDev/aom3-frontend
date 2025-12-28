@@ -48,7 +48,7 @@ const HeroSection = () => {
           <Box pt={2}>
             <Button 
               component={Link}
-              href="/deposit"
+              href="/overview"
               variant="contained" 
               size="large" 
               endIcon={<RocketLaunchIcon />}

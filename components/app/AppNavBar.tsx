@@ -2,9 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { AppBar, Toolbar, Typography, Button, Stack, Container } from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Stack, Container, Menu, MenuItem, Box } from '@mui/material';
 import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
+import { useWallet } from '@/contexts/WalletContext';
+import React from 'react';
 
 const NAV_ITEMS = [
   { label: 'Overview', path: '/overview' },
@@ -14,6 +16,25 @@ const NAV_ITEMS = [
 
 const AppNavbar = () => {
   const pathname = usePathname();
+  const { isConnected, address, balance, connectWallet, disconnectWallet } = useWallet();
+  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (isConnected) {
+      setAnchorEl(event.currentTarget);
+    } else {
+      connectWallet();
+    }
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleDisconnect = () => {
+    disconnectWallet();
+    handleClose();
+  };
 
   return (
     <AppBar 
@@ -75,10 +96,38 @@ const AppNavbar = () => {
             <Button 
               variant="contained" 
               startIcon={<AccountBalanceWalletIcon />}
-              sx={{ bgcolor: '#fff', color: '#000', fontWeight: 700, '&:hover': { bgcolor: '#e0e0e0' } }}
+              onClick={handleClick}
+              sx={{ 
+                bgcolor: isConnected ? '#4caf50' : '#fff', 
+                color: isConnected ? '#000' : '#000', 
+                fontWeight: 700, 
+                '&:hover': { bgcolor: isConnected ? '#45a049' : '#e0e0e0' } 
+              }}
             >
-              Connect Wallet
+              {isConnected ? (
+                <Box component="span">
+                  {address} <Box component="span" sx={{ ml: 1, opacity: 0.7 }}>• ${balance}</Box>
+                </Box>
+              ) : (
+                'Connect Wallet'
+              )}
             </Button>
+
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleClose}
+              anchorOrigin={{
+                vertical: 'bottom',
+                horizontal: 'right',
+              }}
+              transformOrigin={{
+                vertical: 'top',
+                horizontal: 'right',
+              }}
+            >
+              <MenuItem onClick={handleDisconnect}>Disconnect</MenuItem>
+            </Menu>
 
           </Stack>
         </Toolbar>
