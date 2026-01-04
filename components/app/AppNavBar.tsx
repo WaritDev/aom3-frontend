@@ -11,7 +11,7 @@ import React from 'react';
 const NAV_ITEMS = [
   { label: 'Overview', path: '/overview' },
   { label: 'Deposit',  path: '/deposit' },
-  { label: 'Vault',    path: '/vault' },
+  { label: 'Ranking',    path: '/ranking' },
 ];
 
 const AppNavbar = () => {
