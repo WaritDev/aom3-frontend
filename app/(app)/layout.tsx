@@ -3,7 +3,7 @@
 import React from 'react';
 import { Box } from '@mui/material';
 import AppNavbar from '@/components/app/AppNavBar';
-import { WalletProvider } from '@/contexts/WalletContext';
+import WalletGuard from '@/components/app/WalletGuard';
 
 export default function AppLayout({
     children,
@@ -11,14 +11,14 @@ export default function AppLayout({
     children: React.ReactNode;
     }) {
     return (
-        <WalletProvider>
-            <Box sx={{ minHeight: '100vh', bgcolor: '#050505' }}>
-                <AppNavbar />
+        <Box sx={{ minHeight: '100vh', bgcolor: '#050505' }}>
+            <AppNavbar />
 
-                <Box component="main" sx={{ p: { xs: 2, md: 4 } }}>
+            <Box component="main" sx={{ p: { xs: 2, md: 4 } }}>
+                <WalletGuard>
                     {children}
-                </Box>
+                </WalletGuard>
             </Box>
-        </WalletProvider>
+        </Box>
     );
 }

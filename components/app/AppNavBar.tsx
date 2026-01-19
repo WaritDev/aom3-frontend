@@ -1,41 +1,21 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { AppBar, Toolbar, Typography, Button, Stack, Container, Menu, MenuItem, Box } from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Stack, Container } from '@mui/material';
 import AutoGraphIcon from '@mui/icons-material/AutoGraph';
-import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
-import { useWallet } from '@/contexts/WalletContext';
-import React from 'react';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 const NAV_ITEMS = [
   { label: 'Overview', path: '/overview' },
   { label: 'Deposit',  path: '/deposit' },
-  { label: 'Ranking',    path: '/ranking' },
+  { label: 'Ranking',  path: '/ranking' },
 ];
 
 const AppNavbar = () => {
   const pathname = usePathname();
-  const { isConnected, address, balance, connectWallet, disconnectWallet } = useWallet();
-  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
-
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    if (isConnected) {
-      setAnchorEl(event.currentTarget);
-    } else {
-      connectWallet();
-    }
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleDisconnect = () => {
-    disconnectWallet();
-    handleClose();
-  };
-
+  
   return (
     <AppBar 
       position="sticky" 
@@ -93,41 +73,16 @@ const AppNavbar = () => {
               })}
             </Stack>
 
-            <Button 
-              variant="contained" 
-              startIcon={<AccountBalanceWalletIcon />}
-              onClick={handleClick}
-              sx={{ 
-                bgcolor: isConnected ? '#4caf50' : '#fff', 
-                color: isConnected ? '#000' : '#000', 
-                fontWeight: 700, 
-                '&:hover': { bgcolor: isConnected ? '#45a049' : '#e0e0e0' } 
+            <ConnectButton 
+              showBalance={{
+                smallScreen: false,
+                largeScreen: true,
               }}
-            >
-              {isConnected ? (
-                <Box component="span">
-                  {address} <Box component="span" sx={{ ml: 1, opacity: 0.7 }}>• ${balance}</Box>
-                </Box>
-              ) : (
-                'Connect Wallet'
-              )}
-            </Button>
-
-            <Menu
-              anchorEl={anchorEl}
-              open={Boolean(anchorEl)}
-              onClose={handleClose}
-              anchorOrigin={{
-                vertical: 'bottom',
-                horizontal: 'right',
+              accountStatus={{
+                smallScreen: 'avatar',
+                largeScreen: 'full',
               }}
-              transformOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-            >
-              <MenuItem onClick={handleDisconnect}>Disconnect</MenuItem>
-            </Menu>
+            />
 
           </Stack>
         </Toolbar>
