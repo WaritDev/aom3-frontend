@@ -1,77 +1,120 @@
 'use client';
 
 import React from 'react';
-import { Container, Box, Typography, Stack, Paper } from '@mui/material';
+import { Container, Box, Typography, Stack, Fade } from '@mui/material';
 import TuneIcon from '@mui/icons-material/Tune';
 import TimelineIcon from '@mui/icons-material/Timeline';
-import SecurityIcon from '@mui/icons-material/Security';
-import OpacityIcon from '@mui/icons-material/Opacity';
+import ShieldMoonIcon from '@mui/icons-material/ShieldMoon';
+import WaterDropIcon from '@mui/icons-material/WaterDrop';
 
-const features = [
+const NEON_GREEN = '#00E08F';
+const BG_DARK = '#050505';
+const CARD_BG = 'rgba(255, 255, 255, 0.02)';
+
+interface FeatureItem {
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+}
+
+const features: FeatureItem[] = [
   {
-    icon: <OpacityIcon sx={{ color: '#4caf50' }} />, 
-    title: 'Deep Liquidity',
-    desc: 'AOM3 leverages deep on-chain liquidity, enabling strategies to scale efficiently without slippage.'
+    icon: <WaterDropIcon sx={{ color: NEON_GREEN }} />, 
+    title: 'Hyperliquid Core',
+    desc: 'AOM3 execution is powered by the deepest on-chain perpetual liquidity, ensuring 1:1 hedging precision.'
   },
   {
-    icon: <TimelineIcon sx={{ color: '#4caf50' }} />, 
-    title: 'Funding Rates',
-    desc: 'We capture yield directly from funding rates. Real cash flow paid by traders, not inflationary tokens.'
+    icon: <TimelineIcon sx={{ color: NEON_GREEN }} />, 
+    title: 'Funding Rate Capture',
+    desc: 'Earn real cash flow paid by market participants. No inflationary tokens—only pure, sustainable yield.'
   },
   {
-    icon: <TuneIcon sx={{ color: '#4caf50' }} />, 
-    title: 'Delta Neutral',
-    desc: 'Our automated vaults hedge your position 1:1. You earn the yield, but ignore the price volatility.'
+    icon: <TuneIcon sx={{ color: NEON_GREEN }} />, 
+    title: 'Delta-Zero Protocol',
+    desc: 'Our engine maintains a neutral market position. You capture the yield while remaining immune to price swings.'
   },
   {
-    icon: <SecurityIcon sx={{ color: '#4caf50' }} />, 
-    title: 'Non-Custodial',
-    desc: 'You retain full control. Withdraw your funds at any time directly from the smart contract.'
+    icon: <ShieldMoonIcon sx={{ color: NEON_GREEN }} />, 
+    title: 'Discipline Multiplier',
+    desc: 'Your rewards are amplified by consistency. Maintain your streak to claim your share of the forfeited yield pool.'
   }
 ];
 
-const StrategySection = () => {
+const StrategySection: React.FC = () => {
   return (
-    <Box sx={{ py: 12, bgcolor: 'background.paper' }}>
-      <Container maxWidth="lg">
-        <Typography variant="h3" textAlign="center" fontWeight="bold" gutterBottom>
-            Only possible with <span style={{ color: '#4caf50' }}>Smart Execution</span>
-        </Typography>
-        <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 8, maxWidth: 700, mx: 'auto' }}>
-          AOM3 is leveraging unique architecture to make delta-neutral yield strategies seamless, secure, and scalable.
-        </Typography>
+    <Box sx={{ py: { xs: 10, md: 15 }, bgcolor: BG_DARK, position: 'relative' }}>
+      <Box 
+        sx={{ 
+          position: 'absolute', top: '20%', left: '50%', transform: 'translateX(-50%)',
+          width: '80%', height: '400px', bgcolor: `${NEON_GREEN}05`, 
+          filter: 'blur(100px)', borderRadius: '50%', zIndex: 0 
+        }} 
+      />
 
-        <Stack spacing={2}>
+      <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
+        <Fade in timeout={1000}>
+          <Box mb={10} textAlign="center">
+            <Typography variant="overline" sx={{ color: NEON_GREEN, fontWeight: 900, letterSpacing: 4 }}>
+              Advanced Mechanics
+            </Typography>
+            <Typography variant="h2" fontWeight="900" sx={{ mt: 2, mb: 3, letterSpacing: '-2px', textTransform: 'uppercase' }}>
+              Only Possible with <br />
+              <Box component="span" sx={{ color: NEON_GREEN, textShadow: `0 0 30px ${NEON_GREEN}40` }}>
+                Smart Execution
+              </Box>
+            </Typography>
+            <Typography variant="body1" sx={{ color: '#666', maxWidth: 700, mx: 'auto', fontWeight: 500 }}>
+              AOM3 automates institutional-grade delta-neutral strategies, making high-yield savings accessible, secure, and disciplined.
+            </Typography>
+          </Box>
+        </Fade>
+
+        
+        <Stack spacing={2.5}>
           {features.map((item, index) => (
-            <Paper 
+            <Box 
               key={index}
-              elevation={0}
               sx={{ 
-                p: 4, 
-                bgcolor: 'rgba(255,255,255,0.03)', 
-                border: '1px solid rgba(255,255,255,0.05)',
+                p: { xs: 3, md: 4 }, 
+                bgcolor: CARD_BG, 
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                borderRadius: 4,
                 display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                transition: 'all 0.3s',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
+                gap: { xs: 2, sm: 4 },
+                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                cursor: 'default',
                 '&:hover': {
-                  bgcolor: 'rgba(255,255,255,0.05)',
-                  transform: 'translateX(10px)'
+                  bgcolor: 'rgba(0, 224, 143, 0.03)',
+                  borderColor: `${NEON_GREEN}40`,
+                  transform: 'translateX(12px)',
+                  boxShadow: `0 0 30px ${NEON_GREEN}05`
                 }
               }}
             >
-              <Box sx={{ p: 1.5, bgcolor: 'rgba(76, 175, 80, 0.1)', borderRadius: 2 }}>
+              <Box 
+                sx={{ 
+                  p: 2, 
+                  bgcolor: `${NEON_GREEN}10`, 
+                  borderRadius: 3, 
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: `1px solid ${NEON_GREEN}20`
+                }}
+              >
                 {item.icon}
               </Box>
               <Box>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                <Typography variant="h5" fontWeight="900" sx={{ mb: 1, textTransform: 'uppercase', letterSpacing: 1 }}>
                   {item.title}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" sx={{ color: '#888', lineHeight: 1.7, maxWidth: '800px', fontWeight: 500 }}>
                   {item.desc}
                 </Typography>
               </Box>
-            </Paper>
+            </Box>
           ))}
         </Stack>
       </Container>
