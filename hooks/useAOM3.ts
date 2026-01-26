@@ -1,22 +1,51 @@
+'use client';
+
 import { useReadContract, useWriteContract, useAccount, usePublicClient } from 'wagmi';
-import { parseUnits } from 'viem';
-import { AOM3_VAULT_ADDRESS, AOM3_VAULT_ABI, USDC_ADDRESS, USDC_ABI } from '../constants/contracts';
+import { parseUnits, formatUnits } from 'viem';
+import { 
+    AOM3_VAULT_ADDRESS, 
+    AOM3_VAULT_ABI, 
+    USDC_ADDRESS, 
+    USDC_ABI,
+    AOM3_REWARD_DISTRIBUTOR_ADDRESS,
+    AOM3_REWARD_DISTRIBUTOR_ABI
+} from '../constants/contracts';
 
 export function useAOM3() {
     const { address } = useAccount();
     const publicClient = usePublicClient();
     const { writeContractAsync } = useWriteContract();
 
-    const { data: isWindowOpen, refetch: refetchWindow } = useReadContract({
+    const { data: nextQuestId, refetch: refetchNextId } = useReadContract({
+        address: AOM3_VAULT_ADDRESS,
+        abi: AOM3_VAULT_ABI,
+        functionName: 'nextQuestId',
+    });
+
+    const { data: totalDP, refetch: refetchTotalDP } = useReadContract({
+        address: AOM3_VAULT_ADDRESS,
+        abi: AOM3_VAULT_ABI,
+        functionName: 'totalDisciplinePoints',
+    });
+
+    const { data: currentDay } = useReadContract({
+        address: AOM3_VAULT_ADDRESS,
+        abi: AOM3_VAULT_ABI,
+        functionName: 'getDayOfMonth',
+        args: [BigInt(Math.floor(Date.now() / 1000))],
+    });
+
+    const { data: isWindowOpen } = useReadContract({
         address: AOM3_VAULT_ADDRESS,
         abi: AOM3_VAULT_ABI,
         functionName: 'isInsideWindow',
     });
 
-    const { data: nextQuestId } = useReadContract({
-        address: AOM3_VAULT_ADDRESS,
-        abi: AOM3_VAULT_ABI,
-        functionName: 'nextQuestId',
+    const { data: rewardPoolBalance, refetch: refetchPool } = useReadContract({
+        address: USDC_ADDRESS,
+        abi: USDC_ABI,
+        functionName: 'balanceOf',
+        args: [AOM3_REWARD_DISTRIBUTOR_ADDRESS],
     });
 
     const { data: allowance, refetch: refetchAllowance } = useReadContract({
@@ -28,62 +57,88 @@ export function useAOM3() {
 
     const ensureAllowance = async (amountBigInt: bigint) => {
         if (!address || !publicClient) return;
-
         if (!allowance || (allowance as bigint) < amountBigInt) {
-            console.log("Requesting USDC Approval...");
-            const approveHash = await writeContractAsync({
+            const hash = await writeContractAsync({
                 address: USDC_ADDRESS,
                 abi: USDC_ABI,
                 functionName: 'approve',
                 args: [AOM3_VAULT_ADDRESS, amountBigInt],
             });
-            await publicClient.waitForTransactionReceipt({ hash: approveHash });
+            await publicClient.waitForTransactionReceipt({ hash });
             await refetchAllowance();
         }
     };
 
-    const depositWithApprove = async (questId: bigint, amount: string) => {
-        if (!address) throw new Error("Wallet not connected");
-        const amountBigInt = parseUnits(amount, 6);
-
-        await ensureAllowance(amountBigInt);
-
-        console.log("Executing Monthly Deposit...");
-        return await writeContractAsync({
-            address: AOM3_VAULT_ADDRESS,
-            abi: AOM3_VAULT_ABI,
-            functionName: 'deposit',
-            args: [questId],
-        });
-    };
-
-        const createQuestAction = async (monthlyAmount: string, durationMonths: number) => {
-        if (!address) throw new Error("Wallet not connected");
-        
+    const createQuestAction = async (monthlyAmount: string, durationMonths: number) => {
         const amountBigInt = parseUnits(monthlyAmount, 6);
-
-        console.log("Monthly Amount (Raw):", monthlyAmount);
-        console.log("Amount in BigInt (Units):", amountBigInt.toString());
-        console.log("Duration Months:", durationMonths);
-
         await ensureAllowance(amountBigInt);
 
-        return await writeContractAsync({
+        const hash = await writeContractAsync({
             address: AOM3_VAULT_ADDRESS,
             abi: AOM3_VAULT_ABI,
             functionName: 'createQuest',
-            args: [
-                amountBigInt, 
-                BigInt(durationMonths)
-            ],
+            args: [amountBigInt, BigInt(durationMonths)],
         });
+        
+        await publicClient?.waitForTransactionReceipt({ hash });
+        refetchTotalDP();
+        refetchNextId();
+        return hash;
+    };
+
+    const depositAction = async (questId: number) => {
+        const hash = await writeContractAsync({
+            address: AOM3_VAULT_ADDRESS,
+            abi: AOM3_VAULT_ABI,
+            functionName: 'deposit',
+            args: [BigInt(questId)],
+        });
+        await publicClient?.waitForTransactionReceipt({ hash });
+        return hash;
+    };
+
+    const claimRewardAction = async (questId: number) => {
+        const hash = await writeContractAsync({
+            address: AOM3_REWARD_DISTRIBUTOR_ADDRESS,
+            abi: AOM3_REWARD_DISTRIBUTOR_ABI,
+            functionName: 'claimReward',
+            args: [BigInt(questId)],
+        });
+        await publicClient?.waitForTransactionReceipt({ hash });
+        refetchPool();
+        return hash;
+    };
+
+    const withdrawAction = async (questId: number) => {
+        const hash = await writeContractAsync({
+            address: AOM3_VAULT_ADDRESS,
+            abi: AOM3_VAULT_ABI,
+            functionName: 'withdraw',
+            args: [BigInt(questId)],
+        });
+        await publicClient?.waitForTransactionReceipt({ hash });
+        refetchTotalDP();
+        refetchPool();
+        return hash;
     };
 
     return { 
-        isWindowOpen: isWindowOpen as boolean, 
-        depositWithApprove, 
-        nextQuestId: nextQuestId as bigint | undefined, 
+        // Data
+        isWindowOpen: !!isWindowOpen,
+        currentDay: Number(currentDay || 0),
+        totalDP: totalDP ? (totalDP as bigint) : BigInt(0),
+        rewardPoolBalance: rewardPoolBalance ? formatUnits(rewardPoolBalance as bigint, 6) : "0",
+        nextQuestId: nextQuestId as bigint | undefined,
+        
+        // Actions
         createQuestAction,
-        refetchWindow 
+        depositAction,
+        claimRewardAction,
+        withdrawAction,
+
+        // Utils
+        refetchPool,
+        refetchTotalDP,
+        refetchNextId
     };
 }
