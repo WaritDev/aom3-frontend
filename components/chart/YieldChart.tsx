@@ -23,9 +23,10 @@ interface ApiResponse {
 
 interface YieldChartProps {
     coin?: string;
+    onApyLoad?: (apy: number) => void;
 }
 
-export default function YieldChart({ coin = 'BTC' }: YieldChartProps) {
+export default function YieldChart({ coin = 'BTC', onApyLoad }: YieldChartProps) {
     const [data, setData] = useState<ChartData[]>([]);
     const [avgApy, setAvgApy] = useState<number>(0);
     const [loading, setLoading] = useState(true);
@@ -45,6 +46,7 @@ export default function YieldChart({ coin = 'BTC' }: YieldChartProps) {
             if (json.history) {
             setData(json.history);
             setAvgApy(json.average30dApy);
+            if (onApyLoad) onApyLoad(json.average30dApy);
             }
         } catch (e) {
             console.error("Failed to load chart data:", e);
@@ -54,7 +56,7 @@ export default function YieldChart({ coin = 'BTC' }: YieldChartProps) {
         };
 
         fetchData();
-    }, [coin]);
+    }, [coin, onApyLoad]);
 
     if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4, height: 300, alignItems: 'center' }}><CircularProgress size={30} sx={{ color: THEME_COLOR }} /></Box>;
     if (!data.length) return <Typography color="error">Data unavailable</Typography>;
