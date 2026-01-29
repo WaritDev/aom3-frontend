@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { 
     Zoom, Card, CardContent, Stack, Box, Typography, 
     Divider, Button, CircularProgress 
@@ -39,6 +39,14 @@ export const MissionSummaryCard: React.FC<MissionSummaryCardProps> = ({
 }) => {
     const [liveBaseApy, setLiveBaseApy] = useState<number | null>(null);
 
+    const handleApyLoad = useCallback((apy: number) => {
+        setLiveBaseApy(apy);
+    }, []);
+
+    const memoizedChart = useMemo(() => (
+        <YieldChart coin={coinSymbol} onApyLoad={handleApyLoad} />
+    ), [coinSymbol, handleApyLoad]);
+
     const dynamicData = useMemo(() => {
         if (liveBaseApy === null) {
             return { 
@@ -64,8 +72,8 @@ export const MissionSummaryCard: React.FC<MissionSummaryCardProps> = ({
         <Zoom in timeout={600}>
             <Card sx={{ 
                 background: 'linear-gradient(135deg, #0d2e15 0%, #050505 100%)', 
-                border: `2px solid ${NEON_GREEN}`, 
-                borderRadius: 5,
+                border: `1px solid ${NEON_GREEN}`,
+                borderRadius: 3,
                 boxShadow: `0 0 30px ${NEON_GREEN}15`,
                 overflow: 'hidden'
             }}>
@@ -112,15 +120,35 @@ export const MissionSummaryCard: React.FC<MissionSummaryCardProps> = ({
                         </Stack>
                     </Stack>
 
-                    <Box sx={{ mb: 4, borderRadius: 3, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', bgcolor: 'rgba(0,0,0,0.3)' }}>
-                        <YieldChart coin={coinSymbol} onApyLoad={(apy) => setLiveBaseApy(apy)} />
+                    <Box sx={{ 
+                        mb: 4, 
+                        borderRadius: 2, 
+                        overflow: 'hidden', 
+                        border: '1px solid rgba(255,255,255,0.1)', 
+                        bgcolor: 'rgba(0,0,0,0.5)',
+                        height: 300,
+                        position: 'relative',
+                        width: '100%',
+                        display: 'flex',
+                        flexDirection: 'column'
+                    }}>
+                        <Box sx={{ flex: 1, width: '100%', height: '100%' }}>
+                            {memoizedChart}
+                        </Box>
                     </Box>
                     
                     <Button 
                         variant="contained" fullWidth size="large" 
                         disabled={isButtonDisabled}
                         onClick={onInitialize}
-                        sx={{ py: 2.5, borderRadius: 3, fontWeight: 900, bgcolor: NEON_GREEN, color: '#000', '&:hover': { bgcolor: '#00C97F' } }}
+                        sx={{ 
+                            py: 2.5, 
+                            borderRadius: 2,
+                            fontWeight: 900, 
+                            bgcolor: NEON_GREEN, 
+                            color: '#000', 
+                            '&:hover': { bgcolor: '#00C97F' } 
+                        }}
                     >
                         {isConfirming ? (
                             <Stack direction="row" spacing={2} alignItems="center">
