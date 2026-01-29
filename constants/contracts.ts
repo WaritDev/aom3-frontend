@@ -1,6 +1,7 @@
-export const AOM3_VAULT_ADDRESS = "0xAE5b31197713c766beC83C7Ce1D71D92Eda66b81";
-export const AOM3_STRATEGY_ADDRESS = "0xB8816689740cD34eB4ebf50865fD11BE0ABD3cB7";
-export const AOM3_REWARD_DISTRIBUTOR_ADDRESS = "0xed16B2A2bd7CeE47025Ff6e22127dA81B0e87dA1";
+export const AOM3_VAULT_ADDRESS = "0xC0F41cFAB106419A386De9813d5438F8cCb55106" as const;
+export const AOM3_STRATEGY_ADDRESS = "0x65463976BF5859e1e6a7610782C2676110FB3F88" as const;
+export const AOM3_REWARD_DISTRIBUTOR_ADDRESS = "0x5D3368490F081C12948e77aFf83Bf8294FDE9c22" as const;
+export const AOM3_RANKING_ADDRESS = "0x401454e264030503Ed344E6131e37C21F5611ba9" as const;
 export const USDC_ADDRESS = "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d" as const;
 
 export const AOM3_VAULT_ABI = [
@@ -14,6 +15,11 @@ export const AOM3_VAULT_ABI = [
     {
         "internalType": "address",
         "name": "_yieldStrategy",
+        "type": "address"
+    },
+    {
+        "internalType": "address",
+        "name": "_ranking",
         "type": "address"
     }
     ],
@@ -67,6 +73,12 @@ export const AOM3_VAULT_ABI = [
         "internalType": "bool",
         "name": "insideWindow",
         "type": "bool"
+    },
+    {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "bonusDP",
+        "type": "uint256"
     }
     ],
     "name": "DepositExecuted",
@@ -309,6 +321,19 @@ export const AOM3_VAULT_ABI = [
         "internalType": "bool",
         "name": "active",
         "type": "bool"
+    }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+},
+{
+    "inputs": [],
+    "name": "ranking",
+    "outputs": [
+    {
+        "internalType": "contract IAOM3Ranking",
+        "name": "",
+        "type": "address"
     }
     ],
     "stateMutability": "view",
@@ -673,6 +698,318 @@ export const AOM3_REWARD_DISTRIBUTOR_ABI = [
     "outputs": [
     {
         "internalType": "contract IAOM3Vault",
+        "name": "",
+        "type": "address"
+    }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+}
+] as const;
+
+export const AOM3_RANKING_ABI = [
+{
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+},
+{
+    "inputs": [
+    {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+    }
+    ],
+    "name": "OwnableInvalidOwner",
+    "type": "error"
+},
+{
+    "inputs": [
+    {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+    }
+    ],
+    "name": "OwnableUnauthorizedAccount",
+    "type": "error"
+},
+{
+    "anonymous": false,
+    "inputs": [
+    {
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousOwner",
+        "type": "address"
+    },
+    {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+    }
+    ],
+    "name": "OwnershipTransferred",
+    "type": "event"
+},
+{
+    "anonymous": false,
+    "inputs": [
+    {
+        "indexed": true,
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+    },
+    {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "currentDP",
+        "type": "uint256"
+    },
+    {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "lifetimeDP",
+        "type": "uint256"
+    },
+    {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "totalMonths",
+        "type": "uint256"
+    }
+    ],
+    "name": "RankUpdated",
+    "type": "event"
+},
+{
+    "anonymous": false,
+    "inputs": [
+    {
+        "indexed": true,
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+    },
+    {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amountReduced",
+        "type": "uint256"
+    },
+    {
+        "indexed": false,
+        "internalType": "string",
+        "name": "reason",
+        "type": "string"
+    }
+    ],
+    "name": "StatsDecreased",
+    "type": "event"
+},
+{
+    "inputs": [
+    {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+    }
+    ],
+    "name": "allParticipants",
+    "outputs": [
+    {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+    }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+},
+{
+    "inputs": [],
+    "name": "getTotalParticipants",
+    "outputs": [
+    {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+    }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+},
+{
+    "inputs": [
+    {
+        "internalType": "address",
+        "name": "_user",
+        "type": "address"
+    }
+    ],
+    "name": "getUserFullStats",
+    "outputs": [
+    {
+        "components": [
+        {
+            "internalType": "uint256",
+            "name": "lifetimeDP",
+            "type": "uint256"
+        },
+        {
+            "internalType": "uint256",
+            "name": "currentActiveDP",
+            "type": "uint256"
+        },
+        {
+            "internalType": "uint256",
+            "name": "totalQuests",
+            "type": "uint256"
+        },
+        {
+            "internalType": "uint256",
+            "name": "totalMonths",
+            "type": "uint256"
+        }
+        ],
+        "internalType": "struct AOM3Ranking.UserStats",
+        "name": "",
+        "type": "tuple"
+    }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+},
+{
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+    {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+    }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+},
+{
+    "inputs": [
+    {
+        "internalType": "address",
+        "name": "_user",
+        "type": "address"
+    },
+    {
+        "internalType": "uint256",
+        "name": "_dp",
+        "type": "uint256"
+    }
+    ],
+    "name": "reduceActiveDP",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+},
+{
+    "inputs": [
+    {
+        "internalType": "address",
+        "name": "_user",
+        "type": "address"
+    },
+    {
+        "internalType": "uint256",
+        "name": "_dp",
+        "type": "uint256"
+    },
+    {
+        "internalType": "uint256",
+        "name": "_months",
+        "type": "uint256"
+    }
+    ],
+    "name": "registerNewQuest",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+},
+{
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+},
+{
+    "inputs": [
+    {
+        "internalType": "address",
+        "name": "_vault",
+        "type": "address"
+    }
+    ],
+    "name": "setVault",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+},
+{
+    "inputs": [
+    {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+    }
+    ],
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+},
+{
+    "inputs": [
+    {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+    }
+    ],
+    "name": "userStats",
+    "outputs": [
+    {
+        "internalType": "uint256",
+        "name": "lifetimeDP",
+        "type": "uint256"
+    },
+    {
+        "internalType": "uint256",
+        "name": "currentActiveDP",
+        "type": "uint256"
+    },
+    {
+        "internalType": "uint256",
+        "name": "totalQuests",
+        "type": "uint256"
+    },
+    {
+        "internalType": "uint256",
+        "name": "totalMonths",
+        "type": "uint256"
+    }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+},
+{
+    "inputs": [],
+    "name": "vault",
+    "outputs": [
+    {
+        "internalType": "address",
         "name": "",
         "type": "address"
     }
