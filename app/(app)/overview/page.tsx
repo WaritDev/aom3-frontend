@@ -76,6 +76,26 @@ export default function OverviewPage() {
     return { userTotalDP: total, myQuestIds: mine };
   }, [allQuestsData, address]);
 
+  const sortedMyQuestIds = useMemo(() => {
+    if (!allQuestsData || myQuestIds.length === 0) return [];
+
+    return [...myQuestIds].sort((a, b) => {
+      const resA = allQuestsData[Number(a)];
+      const resB = allQuestsData[Number(b)];
+
+      if (resA.status === 'success' && resB.status === 'success') {
+        const questA = resA.result as unknown as QuestResult;
+        const questB = resB.result as unknown as QuestResult;
+
+        const dpA = Number(questA[7]);
+        const dpB = Number(questB[7]);
+
+        return dpB - dpA;
+      }
+      return 0;
+    });
+  }, [myQuestIds, allQuestsData]);
+
   const networkShare = globalTotalDP > 0 ? (userTotalDP / Number(globalTotalDP)) * 100 : 0;
   const estimatedReward = (networkShare / 100) * Number(rewardPoolBalance);
   const isClaimDay = currentDay === 1 || currentDay === 16;
@@ -223,16 +243,30 @@ export default function OverviewPage() {
         </Stack>
         
         <Stack spacing={3}>
-          {myQuestIds.length > 0 ? (
-            [...myQuestIds].reverse().map((id) => (
+          {sortedMyQuestIds.length > 0 ? (
+            sortedMyQuestIds.map((id) => (
               <DynamicPlanCard key={id.toString()} questId={id} />
             ))
           ) : (
-            <Box sx={{ py: 12, textAlign: 'center', border: '2px dashed #1A1A1A', borderRadius: 6, bgcolor: 'rgba(255,255,255,0.01)' }}>
+            <Box sx={{ 
+                py: 12, 
+                textAlign: 'center', 
+                border: '2px dashed #1A1A1A', 
+                borderRadius: 3, 
+                bgcolor: 'rgba(255,255,255,0.01)' 
+            }}>
               <Typography variant="h6" color="rgba(255,255,255,0.3)" fontWeight="700">
                 No active missions detected.
               </Typography>
-              <Button href="/deposit" sx={{ mt: 2, color: NEON_GREEN, fontWeight: 800 }}>
+              <Button 
+                href="/deposit" 
+                sx={{ 
+                    mt: 2, 
+                    color: NEON_GREEN, 
+                    fontWeight: 800,
+                    borderRadius: 2
+                }}
+              >
                 Initialize First Quest →
               </Button>
             </Box>

@@ -1,46 +1,37 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
     Container, Typography, Box, Card, CardContent, Stack, 
     Avatar, Chip, Button, ToggleButton, ToggleButtonGroup,
-    useTheme, useMediaQuery, Zoom
+    useTheme, useMediaQuery, Zoom, CircularProgress
 } from '@mui/material';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import StarIcon from '@mui/icons-material/Star';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 
+import { useAOM3, type LeaderboardEntry } from '@/hooks/useAOM3';
+import { useAccount } from 'wagmi';
+
 const NEON_GREEN = '#00E08F';
 const CARD_BG = '#0A0A0A';
 const CARD_BORDER = '#1E1E1E';
 
-type RankItem = {
-    rank: number;
+interface RankItem {
+    rank: number | string;
     name: string;
     score: number;
     streak: number;
     yield: number;
-    avatarColor?: string;
-};
+    address?: string;
+}
 
-const TOP_THREE: RankItem[] = [
-    { rank: 1, name: '0x12...89A', score: 2450, streak: 12, yield: 4520.50, avatarColor: NEON_GREEN }, 
-    { rank: 2, name: 'CryptoNinja', score: 2100, streak: 10, yield: 3200.12, avatarColor: '#C0C0C0' }, 
-    { rank: 3, name: 'DiamondHand', score: 1950, streak: 9, yield: 1850.00, avatarColor: '#CD7F32' }, 
-];
-
-const LEADERBOARD_LIST: RankItem[] = [
-    { rank: 4, name: '0x88...12B', score: 1800, streak: 8, yield: 1200.00 },
-    { rank: 5, name: 'SaverPro', score: 1750, streak: 8, yield: 950.50 },
-    { rank: 6, name: 'ToTheMoon', score: 1600, streak: 6, yield: 800.00 },
-    { rank: 7, name: '0xAB...CDE', score: 1550, streak: 5, yield: 600.00 },
-    { rank: 8, name: 'WagmiFam', score: 1400, streak: 4, yield: 450.00 },
-];
-
-const MY_RANK: RankItem = { rank: 145, name: 'Rit (Warit)', score: 850, streak: 4, yield: 1240.22 };
 const PodiumCard = ({ user, index }: { user: RankItem, index: number }) => {
-    const isFirst = user.rank === 1;
-    const order = { xs: index === 1 ? 1 : index === 0 ? 2 : 3, md: index === 1 ? 2 : index === 0 ? 1 : 3 };
+    const isFirst = user.rank === 1; 
+    const order = { 
+        xs: index === 1 ? 1 : index === 0 ? 2 : 3, 
+        md: index === 1 ? 2 : index === 0 ? 1 : 3 
+    };
     
     return (
         <Zoom in timeout={500 + (index * 200)}>
@@ -54,7 +45,7 @@ const PodiumCard = ({ user, index }: { user: RankItem, index: number }) => {
                     zIndex: isFirst ? 2 : 1,
                     boxShadow: isFirst ? `0 10px 40px ${NEON_GREEN}25` : 'none',
                     position: 'relative',
-                    borderRadius: 5,
+                    borderRadius: 3,
                     minWidth: { xs: '100%', md: '200px' }
                 }}
             >
@@ -86,14 +77,18 @@ const PodiumCard = ({ user, index }: { user: RankItem, index: number }) => {
                         </Typography>
                     </Stack>
 
-                    <Stack spacing={1} sx={{ bgcolor: 'rgba(255,255,255,0.03)', p: 1.5, borderRadius: 3 }}>
+                    <Stack spacing={1} sx={{ 
+                        bgcolor: 'rgba(255,255,255,0.03)', 
+                        p: 1.5, 
+                        borderRadius: 2
+                    }}>
                         <Box display="flex" justifyContent="space-between">
                             <Typography variant="caption" color="text.secondary" fontWeight="700">STREAK</Typography>
                             <Typography variant="caption" fontWeight="900">{user.streak} MO</Typography>
                         </Box>
                         <Box display="flex" justifyContent="space-between">
-                            <Typography variant="caption" color="text.secondary" fontWeight="700">YIELD</Typography>
-                            <Typography variant="caption" fontWeight="900" color={NEON_GREEN}>+${user.yield.toLocaleString()}</Typography>
+                            <Typography variant="caption" color="text.secondary" fontWeight="700">EST. YIELD</Typography>
+                            <Typography variant="caption" fontWeight="900" color={NEON_GREEN}>+${user.yield.toFixed(2)}</Typography>
                         </Box>
                     </Stack>
                 </CardContent>
@@ -105,13 +100,13 @@ const PodiumCard = ({ user, index }: { user: RankItem, index: number }) => {
 const RankRow = ({ user, isMe = false }: { user: RankItem, isMe?: boolean }) => (
     <Box 
         sx={{ 
-            p: { xs: 1.5, md: 2 }, 
+            p: { xs: 2, md: 2.5 }, 
             bgcolor: isMe ? 'rgba(0, 224, 143, 0.08)' : CARD_BG, 
             border: `1px solid ${isMe ? NEON_GREEN : CARD_BORDER}`,
-            borderRadius: 3,
-            mb: 1.5,
+            borderRadius: 2,
+            mb: 2, 
             transition: 'all 0.2s',
-            '&:hover': { bgcolor: isMe ? 'rgba(0, 224, 143, 0.12)' : '#111', borderColor: isMe ? NEON_GREEN : '#444' }
+            '&:hover': { bgcolor: isMe ? 'rgba(0, 224, 143, 0.12)' : '#111' }
         }}
     >
         <Stack direction="row" alignItems="center" spacing={{ xs: 1, md: 3 }}>
@@ -134,22 +129,93 @@ const RankRow = ({ user, isMe = false }: { user: RankItem, isMe?: boolean }) => 
                     <Typography variant="caption" fontWeight="900">{user.streak} MO</Typography>
                 </Box>
                 <Box textAlign="right" sx={{ minWidth: 80 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem' }}>YIELD</Typography>
-                    <Typography variant="caption" fontWeight="900" color={NEON_GREEN}>+${user.yield.toLocaleString()}</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem' }}>EST. YIELD</Typography>
+                    <Typography variant="caption" fontWeight="900" color={NEON_GREEN}>+${user.yield.toFixed(2)}</Typography>
                 </Box>
             </Stack>
 
             <Box sx={{ width: { xs: 60, md: 80 }, textAlign: 'right' }}>
-                <Chip label={user.score} size="small" sx={{ bgcolor: isMe ? NEON_GREEN : '#1A1A1A', color: isMe ? 'black' : 'white', fontWeight: 900, fontSize: '0.7rem' }} />
+                <Chip label={`${user.score} PTS`} size="small" sx={{ bgcolor: isMe ? NEON_GREEN : '#1A1A1A', color: isMe ? 'black' : 'white', fontWeight: 900, fontSize: '0.7rem' }} />
             </Box>
         </Stack>
     </Box>
 );
 
 export default function RankingPage() {
-    const [period, setPeriod] = useState('all-time');
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const { address } = useAccount();
+    
+    const { 
+        userRanking, 
+        totalParticipants, 
+        fetchLeaderboard, 
+        totalDP, 
+        rewardPoolBalance 
+    } = useAOM3();
+
+    const [period, setPeriod] = useState('all-time');
+    const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const loadLeaderboardData = useCallback(async () => {
+        try {
+            const data = await fetchLeaderboard();
+            setLeaderboard(data);
+        } catch (error) {
+            console.error("Failed to load leaderboard:", error);
+        } finally {
+            setLoading(false);
+        }
+    }, [fetchLeaderboard]);
+
+    useEffect(() => {
+        loadLeaderboardData();
+    }, [loadLeaderboardData, totalParticipants]);
+
+    const calculateYield = useCallback((userDP: number) => {
+        if (totalDP === 0) return 0;
+        return (userDP / totalDP) * Number(rewardPoolBalance);
+    }, [totalDP, rewardPoolBalance]);
+
+    const shortenAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+
+    const formattedLeaderboard = useMemo(() => {
+        return leaderboard.map((user, index) => ({
+            rank: index + 1,
+            name: user.address.toLowerCase() === address?.toLowerCase() ? 'You' : shortenAddress(user.address),
+            score: user.currentActiveDP,
+            streak: user.totalMonths,
+            yield: calculateYield(user.currentActiveDP),
+            address: user.address
+        }));
+    }, [leaderboard, address, calculateYield]);
+
+    const podiumData = useMemo(() => [
+        formattedLeaderboard[1] || null,
+        formattedLeaderboard[0] || null,
+        formattedLeaderboard[2] || null,
+    ], [formattedLeaderboard]);
+
+    const myRankItem = useMemo(() => {
+        const index = leaderboard.findIndex(u => u.address.toLowerCase() === address?.toLowerCase());
+        return {
+            rank: index !== -1 ? index + 1 : '-',
+            name: 'You',
+            score: userRanking.currentActiveDP,
+            streak: userRanking.totalMonths,
+            yield: calculateYield(userRanking.currentActiveDP),
+        };
+    }, [leaderboard, address, userRanking, calculateYield]);
+
+    if (loading) {
+        return (
+            <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+                <CircularProgress sx={{ color: NEON_GREEN, mb: 2 }} />
+                <Typography sx={{ fontWeight: 900, color: NEON_GREEN, letterSpacing: 2 }}>SYNCING WITH BASE...</Typography>
+            </Box>
+        );
+    }
 
     return (
         <Container maxWidth="lg" sx={{ py: { xs: 4, md: 8 } }}>
@@ -159,34 +225,102 @@ export default function RankingPage() {
                         Quest <Box component="span" sx={{ color: NEON_GREEN }}>Leaderboard</Box>
                     </Typography>
                     <Typography variant="body2" color="text.secondary" fontWeight="500">
-                        Top strategists maintaining maximum discipline streaks.
+                        Competing with {totalParticipants} strategists for protocol rewards.
                     </Typography>
                 </Box>
                 
                 <ToggleButtonGroup
-                    value={period} exclusive
+                    value={period}
+                    exclusive
                     onChange={(_, v) => v && setPeriod(v)}
-                    sx={{ bgcolor: '#000', p: 0.5, borderRadius: 3, border: '1px solid #1E1E1E', width: isMobile ? '100%' : 'auto' }}
+                    sx={{ 
+                        bgcolor: 'rgba(0, 0, 0, 0.6)',
+                        p: '4px', 
+                        borderRadius: '12px',
+                        border: '1px solid rgba(255, 255, 255, 0.05)',
+                        backdropFilter: 'blur(10px)',
+                        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
+                        '& .MuiToggleButtonGroup-grouped': {
+                            border: 0,
+                            '&.Mui-disabled': { border: 0 },
+                            '&:not(:first-of-type)': { borderRadius: '8px' },
+                            '&:first-of-type': { borderRadius: '8px' },
+                        },
+                    }}
                 >
-                    <ToggleButton value="weekly" sx={{ flex: 1, px: 3, border: 'none', borderRadius: '8px !important', fontWeight: 900 }}>WEEKLY</ToggleButton>
-                    <ToggleButton value="all-time" sx={{ flex: 1, px: 3, border: 'none', borderRadius: '8px !important', fontWeight: 900 }}>ALL TIME</ToggleButton>
+                    <ToggleButton 
+                        value="all-time" 
+                        sx={{ 
+                            px: 4, 
+                            py: 1,
+                            color: 'rgba(255, 255, 255, 0.5)',
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            letterSpacing: '1px',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            
+                            '&.Mui-selected': {
+                                color: '#000',
+                                bgcolor: NEON_GREEN,
+                                boxShadow: `0 0 15px ${NEON_GREEN}66`,
+                                '&:hover': {
+                                    bgcolor: NEON_GREEN,
+                                    opacity: 0.9,
+                                },
+                            },
+
+                            '&:hover': {
+                                bgcolor: 'rgba(255, 255, 255, 0.05)',
+                                color: '#fff',
+                            }
+                        }}
+                    >
+                        ALL TIME
+                    </ToggleButton>
+                    
+                    <ToggleButton 
+                        value="monthly" 
+                        sx={{ 
+                            px: 4, 
+                            py: 1,
+                            color: 'rgba(255, 255, 255, 0.5)',
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            letterSpacing: '1px',
+                            '&.Mui-selected': {
+                                color: '#000',
+                                bgcolor: NEON_GREEN,
+                                boxShadow: `0 0 15px ${NEON_GREEN}66`,
+                            },
+                        }}
+                    >
+                        MONTHLY
+                    </ToggleButton>
                 </ToggleButtonGroup>
             </Stack>
 
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={isMobile ? 2 : 4} alignItems={isMobile ? 'stretch' : 'flex-end'} mb={10} sx={{ px: { md: 8 } }}>
-                <PodiumCard user={TOP_THREE[1]} index={0} />
-                <PodiumCard user={TOP_THREE[0]} index={1} />
-                <PodiumCard user={TOP_THREE[2]} index={2} />
+                {podiumData.map((user, idx) => (
+                    user ? <PodiumCard key={idx} user={user} index={idx} /> : <Box key={idx} sx={{ flex: 1 }} />
+                ))}
             </Stack>
 
             <Box sx={{ 
-                position: 'sticky', top: { xs: 70, md: 80 }, zIndex: 10, mb: 4, mx: { xs: -1, md: -2 }, px: { xs: 1, md: 2 },
-                bgcolor: 'rgba(10,10,10,0.8)', backdropFilter: 'blur(8px)', py: 1, borderRadius: 4
-            }}> 
+                position: 'sticky', 
+                top: { xs: 70, md: 80 }, 
+                zIndex: 10, 
+                mb: 6, 
+                px: { xs: 2, md: 3 }, 
+                bgcolor: 'rgba(10,10,10,0.8)', 
+                backdropFilter: 'blur(12px)',
+                py: 2, 
+                borderRadius: 2,
+                border: `1px solid ${CARD_BORDER}`
+            }}>
                 <Typography variant="overline" sx={{ color: NEON_GREEN, fontWeight: 900, mb: 1, display: 'block', letterSpacing: 2, ml: 1 }}>
                     YOUR STATUS
                 </Typography>
-                <RankRow user={MY_RANK} isMe />
+                <RankRow user={myRankItem} isMe />
             </Box>
 
             <Box sx={{ mb: 8 }}>
@@ -194,13 +328,15 @@ export default function RankingPage() {
                     GLOBAL STRATEGISTS
                 </Typography>
                 <Stack spacing={0.5}>
-                    {LEADERBOARD_LIST.map((user) => (
-                        <RankRow key={user.rank} user={user} />
+                    {formattedLeaderboard.slice(3, 13).map((user) => (
+                        <RankRow key={user.rank} user={user} isMe={user.address?.toLowerCase() === address?.toLowerCase()} />
                     ))}
                 </Stack>
-                <Button fullWidth variant="text" sx={{ mt: 3, color: '#444', fontWeight: 900 }} endIcon={<ArrowDownwardIcon />}>
-                    LOAD MORE
-                </Button>
+                {formattedLeaderboard.length > 13 && (
+                    <Button fullWidth variant="text" sx={{ mt: 3, color: '#444', fontWeight: 900 }} endIcon={<ArrowDownwardIcon />}>
+                        LOAD MORE
+                    </Button>
+                )}
             </Box>
         </Container>
     );
