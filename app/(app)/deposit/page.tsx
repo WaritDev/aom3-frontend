@@ -3,14 +3,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  Container, Typography, Box, Card, CardContent, Stack, Fade
+  Container, Typography, Box, Card, CardContent, Stack, Fade, Grow 
 } from '@mui/material';
 
 import GavelIcon from '@mui/icons-material/Gavel';
 import { useAOM3 } from '@/hooks/useAOM3';
 import { useRealYield } from '@/hooks/useRealYield';
 import { useAccount, useReadContract, useWaitForTransactionReceipt } from 'wagmi';
-import { formatUnits } from 'viem';
+import { formatUnits, type Address } from 'viem';
 import { USDC_ADDRESS, USDC_ABI } from '@/constants/contracts';
 import { RewardEngineCard } from '@/components/card/RewardEngineCard';
 import { MissionCommitmentCard } from '@/components/card/MissionCommitmentCard';
@@ -45,7 +45,7 @@ export default function DepositPage() {
   const [selectedAsset] = useState<Asset>(ASSETS[0]);
   const [monthlyAmount, setMonthlyAmount] = useState<string>('');
   const [durationValue, setDurationValue] = useState<number>(12);
-  const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
+  const [txHash, setTxHash] = useState<Address | undefined>();
   const [isDeploying, setIsDeploying] = useState(false);
 
   const selectedDuration = useMemo(() => 
@@ -54,7 +54,7 @@ export default function DepositPage() {
   );
 
   const { data: balanceData, refetch: refetchBalance, isLoading: isBalanceLoading } = useReadContract({
-    address: USDC_ADDRESS,
+    address: USDC_ADDRESS as Address,
     abi: USDC_ABI,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
@@ -102,52 +102,76 @@ export default function DepositPage() {
 
   return (
     <Container maxWidth="md" sx={{ py: { xs: 4, md: 8 } }}>
+      
       <Fade in timeout={800}>
         <Box sx={{ mb: 6, textAlign: 'center' }}>
+          <Typography variant="overline" sx={{ color: NEON_GREEN, fontWeight: 900, letterSpacing: 3 }}>
+              STRATEGY INITIALIZATION
+          </Typography>
           <Typography variant="h3" fontWeight="900" sx={{ letterSpacing: '-2px', textTransform: 'uppercase', color: 'white' }}>
-            Savings <Box component="span" sx={{ color: NEON_GREEN }}>Quest</Box>
+            Savings <Box component="span" sx={{ color: NEON_GREEN, textShadow: `0 0 20px ${NEON_GREEN}44` }}>Quest</Box>
           </Typography>
         </Box>
       </Fade>
 
       <Stack spacing={4}>
-        <Card sx={{ bgcolor: 'rgba(255,152,0,0.03)', border: `1px solid ${NEON_ORANGE}`, borderRadius: 4 }}>
-          <CardContent sx={{ p: 3 }}>
-            <Typography variant="subtitle2" fontWeight="800" color={NEON_ORANGE} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-              <GavelIcon fontSize="small" /> AOM3 DISCIPLINE REGULATION
-            </Typography>
-            <Typography variant="caption" sx={{ color: '#CCC', display: 'block' }}>
-              Principal is 100% safe. Streak Multipliers apply to active savers only.
-            </Typography>
-          </CardContent>
-        </Card>
+        
+        <Grow in timeout={1000}>
+          <Card sx={{ 
+            bgcolor: 'rgba(255,152,0,0.03)', 
+            border: `1px solid ${NEON_ORANGE}44`, 
+            borderRadius: 2
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="subtitle2" fontWeight="900" color={NEON_ORANGE} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                <GavelIcon fontSize="small" /> AOM3 DISCIPLINE REGULATION
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#888', display: 'block', fontWeight: 500, lineHeight: 1.6 }}>
+                Principal is 100% safe. Streak Multipliers apply to active savers only. 
+                Savers must deposit within the monthly window to maintain discipline points.
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grow>
 
-        <MissionCommitmentCard 
-          monthlyAmount={monthlyAmount}
-          setMonthlyAmount={setMonthlyAmount}
-          duration={durationValue}
-          setDuration={setDurationValue}
-          walletBalance={walletBalance}
-          isBalanceLoading={isBalanceLoading}
-          assetSymbol="USDC"
-        />
+        <Fade in timeout={1100}>
+          <Box>
+            <MissionCommitmentCard 
+              monthlyAmount={monthlyAmount}
+              setMonthlyAmount={setMonthlyAmount}
+              duration={durationValue}
+              setDuration={setDurationValue}
+              walletBalance={walletBalance}
+              isBalanceLoading={isBalanceLoading}
+              assetSymbol="USDC"
+            />
+          </Box>
+        </Fade>
 
-        <MissionSummaryCard 
-          isYieldLoading={isYieldLoading}
-          estimatedMaxApy={estimatedMaxApy}
-          totalPrincipal={totalPrincipal}
-          estimatedInterest={estimatedInterest}
-          amountNum={amountNum}
-          walletBalance={Number(walletBalance)}
-          isDeploying={isDeploying}
-          isConfirming={isConfirming}
-          onInitialize={handleInitializeQuest}
-          coinSymbol={'BTC'}
-          durationMultiplier={selectedDuration.multiplier}
-          durationMonths={selectedDuration.value}
-        />
+        <Fade in timeout={1200}>
+          <Box>
+            <MissionSummaryCard 
+              isYieldLoading={isYieldLoading}
+              estimatedMaxApy={estimatedMaxApy}
+              totalPrincipal={totalPrincipal}
+              estimatedInterest={estimatedInterest}
+              amountNum={amountNum}
+              walletBalance={Number(walletBalance)}
+              isDeploying={isDeploying}
+              isConfirming={isConfirming}
+              onInitialize={handleInitializeQuest}
+              coinSymbol={'BTC'}
+              durationMultiplier={selectedDuration.multiplier}
+              durationMonths={selectedDuration.value}
+            />
+          </Box>
+        </Fade>
 
-        <RewardEngineCard />
+        <Fade in timeout={1300}>
+          <Box>
+            <RewardEngineCard />
+          </Box>
+        </Fade>
       </Stack>
     </Container>
   );
