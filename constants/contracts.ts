@@ -1,7 +1,7 @@
-export const AOM3_VAULT_ADDRESS = "0xC0F41cFAB106419A386De9813d5438F8cCb55106" as const;
-export const AOM3_STRATEGY_ADDRESS = "0x65463976BF5859e1e6a7610782C2676110FB3F88" as const;
-export const AOM3_REWARD_DISTRIBUTOR_ADDRESS = "0x5D3368490F081C12948e77aFf83Bf8294FDE9c22" as const;
-export const AOM3_RANKING_ADDRESS = "0x401454e264030503Ed344E6131e37C21F5611ba9" as const;
+export const AOM3_VAULT_ADDRESS = "0x4E6822A38ae1b540940b54eEC925Eb88285d991a" as const;
+export const AOM3_STRATEGY_ADDRESS = "0xa338661A27fCc4a8FD50dae1058eD9E8cf37BEA3" as const;
+export const AOM3_REWARD_DISTRIBUTOR_ADDRESS = "0x48D25aEA01BFf105790dFc13170caf4B1bf682c4" as const;
+export const AOM3_RANKING_ADDRESS = "0xffF0E9eeF410e9418EB773d560E667FdAd9DB278" as const;
 export const USDC_ADDRESS = "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d" as const;
 
 export const AOM3_VAULT_ABI = [
@@ -239,6 +239,30 @@ export const AOM3_VAULT_ABI = [
     }
     ],
     "stateMutability": "view",
+    "type": "function"
+},
+{
+    "inputs": [
+    {
+        "internalType": "uint256",
+        "name": "_currentTimestamp",
+        "type": "uint256"
+    },
+    {
+        "internalType": "uint256",
+        "name": "_lastTimestamp",
+        "type": "uint256"
+    }
+    ],
+    "name": "isNewMonth",
+    "outputs": [
+    {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+    }
+    ],
+    "stateMutability": "pure",
     "type": "function"
 },
 {

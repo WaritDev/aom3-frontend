@@ -155,15 +155,21 @@ export function useAOM3() {
         return hash;
     };
 
-    const depositAction = async (questId: number): Promise<Hash | undefined> => {
+    const depositAction = async (questId: number, amountStr?: string): Promise<Hash | undefined> => {
+        if (amountStr) {
+            const amountBigInt = parseUnits(amountStr, 6);
+            await ensureAllowance(amountBigInt);
+        }
+
         const hash: Hash = await writeContractAsync({
             address: AOM3_VAULT_ADDRESS,
             abi: AOM3_VAULT_ABI,
             functionName: 'deposit',
             args: [BigInt(questId)],
         });
+        
         await publicClient?.waitForTransactionReceipt({ hash });
-        await Promise.all([refetchRanking(), refetchTotalDP()]);
+        await Promise.all([refetchRanking(), refetchTotalDP(), refetchAllowance()]);
         return hash;
     };
 
