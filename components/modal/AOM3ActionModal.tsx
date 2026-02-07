@@ -22,6 +22,7 @@ interface AOM3ActionModalProps {
     streak?: number;
     onConfirm: () => Promise<void>;
     loading: boolean;
+    lastDepositTimestamp?: number;
 }
 
 export const AOM3ActionModal: React.FC<AOM3ActionModalProps> = ({

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { formatUnits } from 'viem';
 import { useReadContract } from 'wagmi';
 import { 
@@ -8,6 +8,7 @@ import {
     LinearProgress, Button, Skeleton, Divider, Chip
 } from '@mui/material';
 import MilitaryTechIcon from '@mui/icons-material/MilitaryTech';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
 import { useAOM3 } from '@/hooks/useAOM3';
 import { AOM3_VAULT_ADDRESS, AOM3_VAULT_ABI } from '@/constants/contracts';
@@ -16,6 +17,9 @@ import { AOM3ActionModal } from '../modal/AOM3ActionModal';
 const NEON_GREEN = '#00E08F';
 const NEON_ORANGE = '#FFA500';
 const GOLD_COLOR = '#FFD700';
+const ERROR_RED = '#FF4D4D';
+
+const SECONDS_IN_20_DAYS = 20 * 24 * 60 * 60;
 
 type QuestData = readonly [
   `0x${string}`, // owner
@@ -36,12 +40,17 @@ interface DynamicPlanCardProps {
 
 export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onActionSuccess }) => {
     const [isProcessing, setIsProcessing] = useState(false);
+    const [currentTime, setCurrentTime] = useState<number>(0);
     const [modalConfig, setModalConfig] = useState<{
         open: boolean;
         type: 'deposit' | 'withdraw';
     }>({ open: false, type: 'deposit' });
 
     const { isWindowOpen, totalDP, depositAction, withdrawAction } = useAOM3();
+
+    useEffect(() => {
+        setCurrentTime(Math.floor(Date.now() / 1000));
+    }, []);
 
     const { data: quest, isLoading, refetch } = useReadContract({
         address: AOM3_VAULT_ADDRESS,
@@ -50,12 +59,24 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
         args: [questId],
     });
 
+    const questData = quest as unknown as QuestData;
+
+    const coolingStatus = useMemo(() => {
+        if (!questData || currentTime === 0) return { isLocked: false, daysLeft: 0 };
+        
+        const lastDep = Number(questData[6]);
+        const nextAvailable = lastDep + SECONDS_IN_20_DAYS;
+        const isLocked = currentTime < nextAvailable;
+        const daysLeft = Math.ceil((nextAvailable - currentTime) / (24 * 3600));
+
+        return { isLocked, daysLeft };
+    }, [questData, currentTime]);
+
     if (isLoading || !quest) {
         return <Skeleton variant="rectangular" height={220} sx={{ borderRadius: 4, bgcolor: '#1A1A1A' }} />;
     }
 
-    const questData = quest as unknown as QuestData;
-    const [, monthlyAmount, totalDeposited, currentStreak, duration, startTimestamp, , dp, active] = questData;
+    const [, monthlyAmount, totalDeposited, currentStreak, duration, startTimestamp, lastDepositTimestamp, dp, active] = questData;
 
     if (!active) return null;
 
@@ -71,6 +92,8 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
     const maturityTimestamp = Number(startTimestamp) + (Number(duration) * 30 * 24 * 60 * 60);
     const isMatured = Math.floor(Date.now() / 1000) >= maturityTimestamp;
     const penaltyAmount = isMatured ? 0 : totalDepNum * 0.1;
+
+    const canDeposit = isWindowOpen && !coolingStatus.isLocked;
 
     const handleConfirmAction = async () => {
         setIsProcessing(true);
@@ -90,8 +113,8 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
         <>
             <Card sx={{ 
                 bgcolor: '#0D0D0D', 
-                border: `1px solid ${isMatured ? NEON_GREEN : '#222'}`, 
-                borderRadius: 4,
+                border: `1px solid ${isMatured ? NEON_GREEN : (coolingStatus.isLocked ? `${ERROR_RED}44` : '#222')}`, 
+                borderRadius: 3,
                 position: 'relative',
                 overflow: 'visible',
                 transition: '0.3s',
@@ -139,6 +162,13 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                                     <Typography variant="caption" color="text.secondary">COMMITMENT</Typography>
                                     <Typography variant="body2" color="white" fontWeight={700}>{duration.toString()} Months</Typography>
                                 </Box>
+                                {/* ✨ แสดงวันถอนที่แน่นอน */}
+                                <Box>
+                                    <Typography variant="caption" color="text.secondary">MATURITY</Typography>
+                                    <Typography variant="body2" color={isMatured ? NEON_GREEN : "white"} fontWeight={700}>
+                                        {new Date(maturityTimestamp * 1000).toLocaleDateString()}
+                                    </Typography>
+                                </Box>
                             </Stack>
                         </Box>
 
@@ -160,17 +190,28 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                                 </Button>
                                 <Button 
                                     variant="contained" 
-                                    disabled={!isWindowOpen || isProcessing}
+                                    disabled={!canDeposit || isProcessing}
                                     onClick={() => setModalConfig({ open: true, type: 'deposit' })}
+                                    startIcon={coolingStatus.isLocked && <AccessTimeIcon />}
                                     sx={{ 
-                                        borderRadius: 2, bgcolor: isWindowOpen ? NEON_GREEN : '#222', 
-                                        color: '#000', fontWeight: 900, minWidth: 120,
-                                        '&:hover': { bgcolor: '#00C97F' }
+                                        borderRadius: 2, 
+                                        bgcolor: canDeposit ? NEON_GREEN : '#222', 
+                                        color: canDeposit ? '#000' : '#666', 
+                                        fontWeight: 900, minWidth: 140,
+                                        '&:hover': { bgcolor: '#00C97F' },
+                                        transition: '0.2s'
                                     }}
                                 >
-                                    {isWindowOpen ? "DEPOSIT" : "LOCKED"}
+                                    {coolingStatus.isLocked 
+                                        ? `WAIT ${coolingStatus.daysLeft}D` 
+                                        : (isWindowOpen ? "DEPOSIT" : "STANDBY")}
                                 </Button>
                             </Stack>
+                            {coolingStatus.isLocked && (
+                                <Typography variant="caption" sx={{ color: ERROR_RED, mt: 1, display: 'block', fontWeight: 700 }}>
+                                    Cooling down active
+                                </Typography>
+                            )}
                         </Box>
                     </Stack>
                 </CardContent>
@@ -186,6 +227,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                 streak={streak}
                 loading={isProcessing}
                 onConfirm={handleConfirmAction}
+                lastDepositTimestamp={Number(lastDepositTimestamp)}
             />
         </>
     );
