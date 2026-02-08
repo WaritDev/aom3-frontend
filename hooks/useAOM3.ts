@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo } from 'react';
 import { useReadContract, useWriteContract, useAccount, usePublicClient, useWalletClient } from 'wagmi';
-import { parseSignature, type Abi, parseUnits, formatUnits, getAddress } from 'viem';
+import { parseSignature, type Abi, parseUnits, formatUnits, getAddress, Hex } from 'viem';
 import { 
     AOM3_VAULT_ADDRESS, 
     AOM3_VAULT_ABI, 
@@ -13,7 +13,11 @@ import {
     AOM3_REWARD_DISTRIBUTOR_ABI,
 } from '../constants/contracts';
 
-const HL_BRIDGE_ADDRESS = getAddress("0x08cfc1B6b2dCF36A1480b99353A354AA8AC56f89");
+const rawBridgeAddress = process.env.NEXT_PUBLIC_HL_BRIDGE_ADDRESS;
+if (!rawBridgeAddress) {
+    throw new Error("NEXT_PUBLIC_HL_BRIDGE_ADDRESS is missing in .env file");
+}
+export const HL_BRIDGE_ADDRESS = getAddress(rawBridgeAddress as Hex);
 
 export function useAOM3() {
     const { address } = useAccount();
@@ -21,7 +25,6 @@ export function useAOM3() {
     const { data: walletClient } = useWalletClient();
     const { writeContractAsync } = useWriteContract();
 
-    // --- 1. Data Fetching (Vault & Ranking) ---
     const { data: virtualBalanceRaw, refetch: refetchBalance } = useReadContract({
         address: AOM3_VAULT_ADDRESS,
         abi: AOM3_VAULT_ABI as Abi,
@@ -43,14 +46,12 @@ export function useAOM3() {
         args: address ? [address] : undefined,
     });
 
-    // --- 2. Dashboard Global Data ---
     const { data: nextQuestId } = useReadContract({
         address: AOM3_VAULT_ADDRESS,
         abi: AOM3_VAULT_ABI as Abi,
         functionName: 'nextQuestId',
     });
 
-    // ดึงยอดเงินรวมใน Pool จาก Reward Distributor
     const { data: rewardPoolBalance } = useReadContract({
         address: USDC_ADDRESS,
         abi: [{ name: 'balanceOf', type: 'function', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }] }] as const,
@@ -58,14 +59,12 @@ export function useAOM3() {
         args: [AOM3_REWARD_DISTRIBUTOR_ADDRESS],
     });
 
-    // ตรวจสอบสถานะหน้าต่างการฝาก (Window)
     const { data: isWindowOpen } = useReadContract({
         address: AOM3_VAULT_ADDRESS,
         abi: AOM3_VAULT_ABI as Abi,
         functionName: 'isInsideWindow',
     });
 
-    // --- 3. Atomic & Reward Actions ---
     const signPermitForBridge = useCallback(async (amount: string, deadline: bigint) => {
         if (!address || !publicClient || !walletClient) throw new Error("Wallet not ready");
         const freshNonce = await publicClient.readContract({
@@ -126,7 +125,6 @@ export function useAOM3() {
         return hash;
     }, [writeContractAsync, publicClient, refetchBalance, refetchRanking]);
 
-    // --- 4. Computed Stats & Return ---
     const stats = useMemo(() => {
         const data = rankingData as bigint[] | undefined;
         return { 

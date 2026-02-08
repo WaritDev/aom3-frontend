@@ -1,9 +1,14 @@
 import { http, createConfig } from 'wagmi'
-import { arbitrumSepolia } from 'wagmi/chains'
+import { arbitrum, arbitrumSepolia } from 'wagmi/chains'
+
+const isMainnet = process.env.NEXT_PUBLIC_IS_MAINNET === 'true';
+const rpcUrl = process.env.NEXT_PUBLIC_ARBITRUM_RPC_URL;
+const activeChain = isMainnet ? arbitrum : arbitrumSepolia;
 
 export const config = createConfig({
-  chains: [arbitrumSepolia],
+  chains: [activeChain],
   transports: {
-    [arbitrumSepolia.id]: http('https://arb-sepolia.g.alchemy.com/v2/37WStqCX4HX8xS-9k3bdB'),
+    [arbitrum.id]: http(rpcUrl),
+    [arbitrumSepolia.id]: http(rpcUrl),
   },
 })
