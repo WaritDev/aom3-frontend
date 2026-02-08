@@ -3,9 +3,10 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { 
     Zoom, Card, CardContent, Stack, Box, Typography, 
-    Divider, Button, CircularProgress 
+    Divider, Button, CircularProgress, Tooltip
 } from '@mui/material';
 import StarsIcon from '@mui/icons-material/Stars';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import YieldChart from '../chart/YieldChart';
 
 const NEON_GREEN = '#00E08F';
@@ -27,7 +28,6 @@ interface MissionSummaryCardProps {
 
 export const MissionSummaryCard: React.FC<MissionSummaryCardProps> = ({
     estimatedMaxApy: initialApy,
-    estimatedInterest: initialInterest,
     amountNum,
     walletBalance,
     isDeploying,
@@ -43,30 +43,30 @@ export const MissionSummaryCard: React.FC<MissionSummaryCardProps> = ({
         setLiveBaseApy(apy);
     }, []);
 
-    const memoizedChart = useMemo(() => (
-        <YieldChart coin={coinSymbol} onApyLoad={handleApyLoad} />
-    ), [coinSymbol, handleApyLoad]);
-
-    const dynamicData = useMemo(() => {
-        if (liveBaseApy === null) {
-            return { 
-                displayApy: initialApy, 
-                displayInterest: initialInterest
-            };
+    const calculation = useMemo(() => {
+        const apy = liveBaseApy ?? Number(initialApy) ?? 0;
+        const monthlyRate = apy / 100 / 12;
+        
+        let futureValue = 0;
+        if (monthlyRate > 0) {
+            futureValue = amountNum * ((Math.pow(1 + monthlyRate, durationMonths) - 1) / monthlyRate);
+        } else {
+            futureValue = amountNum * durationMonths;
         }
 
-        const maxPotentialApy = liveBaseApy;
-        const monthlyRate = liveBaseApy / 100 / 12;
-        const futureValue = amountNum * ((Math.pow(1 + monthlyRate, durationMonths) - 1) / monthlyRate);
-        const baseInterest = futureValue - (amountNum * durationMonths);
+        const totalPrincipal = amountNum * durationMonths;
+        const estYield = Math.max(0, futureValue - totalPrincipal);
 
         return {
-            displayApy: maxPotentialApy.toFixed(2),
-            displayInterest: baseInterest
+            apy: apy.toFixed(2),
+            yield: estYield,
+            total: futureValue,
+            principal: totalPrincipal
         };
-    }, [liveBaseApy, initialApy, initialInterest, amountNum, durationMonths]);
+    }, [liveBaseApy, initialApy, amountNum, durationMonths]);
 
-    const isButtonDisabled = !amountNum || isDeploying || isConfirming || amountNum > walletBalance;
+    const isInsufficientBalance = amountNum > walletBalance;
+    const isButtonDisabled = !amountNum || amountNum <= 0 || isDeploying || isConfirming || isInsufficientBalance;
 
     return (
         <Zoom in timeout={600}>
@@ -84,7 +84,7 @@ export const MissionSummaryCard: React.FC<MissionSummaryCardProps> = ({
                                 ESTIMATED MAX APY (INCL. BOOST)
                             </Typography>
                             <Typography variant="h2" fontWeight="900" sx={{ color: NEON_GREEN, letterSpacing: -2 }}>
-                                {liveBaseApy === null ? <CircularProgress size={30} color="inherit" /> : `${dynamicData.displayApy}%`}
+                                {liveBaseApy === null ? <CircularProgress size={30} color="inherit" /> : `${calculation.apy}%`}
                             </Typography>
                             <Stack direction="row" spacing={1} justifyContent={{ xs: 'center', md: 'flex-start' }} mt={1}>
                                 <StarsIcon sx={{ fontSize: 18, color: NEON_GREEN }} />
@@ -96,15 +96,20 @@ export const MissionSummaryCard: React.FC<MissionSummaryCardProps> = ({
 
                         <Stack sx={{ flex: 1.2, width: '100%' }} spacing={1.5}>
                             <Box display="flex" justifyContent="space-between">
-                                <Typography color="rgba(255,255,255,0.5)" fontWeight={600}>Total Principal</Typography>
+                                <Typography color="rgba(255,255,255,0.5)" fontWeight={600}>Target Principal</Typography>
                                 <Typography fontWeight="800" color="white">
-                                    {(amountNum * durationMonths).toLocaleString()} USDC
+                                    {calculation.principal.toLocaleString()} USDC
                                 </Typography>
                             </Box>
                             <Box display="flex" justifyContent="space-between">
-                                <Typography color="rgba(255,255,255,0.5)" fontWeight={600}>Est. Real Yield</Typography>
+                                <Stack direction="row" spacing={0.5} alignItems="center">
+                                    <Typography color="rgba(255,255,255,0.5)" fontWeight={600}>Est. Real Yield</Typography>
+                                    <Tooltip title="Monthly Compounding Calculation">
+                                        <InfoOutlinedIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.3)' }} />
+                                    </Tooltip>
+                                </Stack>
                                 <Typography fontWeight="800" color={NEON_GREEN}>
-                                    +{dynamicData.displayInterest.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDC
+                                    +{calculation.yield.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC
                                 </Typography>
                             </Box>
                             <Divider sx={{ my: 1, borderColor: 'rgba(255,255,255,0.1)' }} />
@@ -114,27 +119,18 @@ export const MissionSummaryCard: React.FC<MissionSummaryCardProps> = ({
                                     <Typography variant="caption" color="text.secondary">+ Share of Global Reward Pool</Typography>
                                 </Box>
                                 <Typography variant="h5" fontWeight="900" color={NEON_GREEN}>
-                                    {((amountNum * durationMonths) + dynamicData.displayInterest).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                    {calculation.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </Typography>
                             </Box>
                         </Stack>
                     </Stack>
 
                     <Box sx={{ 
-                        mb: 4, 
-                        borderRadius: 2, 
-                        overflow: 'hidden', 
+                        mb: 4, borderRadius: 2, overflow: 'hidden', 
                         border: '1px solid rgba(255,255,255,0.1)', 
-                        bgcolor: 'rgba(0,0,0,0.5)',
-                        height: 300,
-                        position: 'relative',
-                        width: '100%',
-                        display: 'flex',
-                        flexDirection: 'column'
+                        bgcolor: 'rgba(0,0,0,0.5)', height: 380, position: 'relative'
                     }}>
-                        <Box sx={{ flex: 1, width: '100%', height: '100%' }}>
-                            {memoizedChart}
-                        </Box>
+                        <YieldChart coin={coinSymbol} onApyLoad={handleApyLoad} />
                     </Box>
                     
                     <Button 
@@ -142,11 +138,8 @@ export const MissionSummaryCard: React.FC<MissionSummaryCardProps> = ({
                         disabled={isButtonDisabled}
                         onClick={onInitialize}
                         sx={{ 
-                            py: 2.5, 
-                            borderRadius: 2,
-                            fontWeight: 900, 
-                            bgcolor: NEON_GREEN, 
-                            color: '#000', 
+                            py: 2.5, borderRadius: 2, fontWeight: 900, 
+                            bgcolor: NEON_GREEN, color: '#000', 
                             '&:hover': { bgcolor: '#00C97F' } 
                         }}
                     >
@@ -155,6 +148,8 @@ export const MissionSummaryCard: React.FC<MissionSummaryCardProps> = ({
                                 <CircularProgress size={20} color="inherit" />
                                 <Typography fontWeight={900}>SYNCING BLOCKCHAIN...</Typography>
                             </Stack>
+                        ) : isInsufficientBalance ? (
+                            `NEED ${amountNum} USDC TO START`
                         ) : "INITIALIZE SAVINGS QUEST"}
                     </Button>
                 </CardContent>

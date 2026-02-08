@@ -3,12 +3,14 @@
 import React from 'react';
 import { 
     Card, CardContent, Stack, Box, Typography, 
-    TextField, InputAdornment, ToggleButtonGroup, ToggleButton 
+    TextField, InputAdornment, ToggleButtonGroup, ToggleButton
 } from '@mui/material';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import BoltIcon from '@mui/icons-material/Bolt';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
 const NEON_GREEN = '#00E08F';
+const ERROR_RED = '#FF4D4D';
 
 const DURATION_OPTIONS = [
     { label: '3M', value: 3, multiplier: '1.0x' },
@@ -33,15 +35,23 @@ export const MissionCommitmentCard: React.FC<MissionCommitmentCardProps> = ({
     walletBalance, isBalanceLoading, assetSymbol
 }) => {
 
+    const isUnderMin = monthlyAmount !== '' && Number(monthlyAmount) < 10;
+    const isOverBalance = Number(monthlyAmount) > Number(walletBalance);
+
     const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
-        if (value === '' || /^[1-9]\d*$/.test(value) || value === '0') {
+        if (value === '' || /^\d*$/.test(value)) {
             setMonthlyAmount(value);
         }
     };
 
     return (
-        <Card sx={{ bgcolor: '#0A0A0A', border: '1px solid #1E1E1E', borderRadius: 2 }}>
+        <Card sx={{ 
+            bgcolor: '#0A0A0A', 
+            border: `1px solid ${isUnderMin ? ERROR_RED : '#1E1E1E'}`, 
+            borderRadius: 3,
+            transition: 'border-color 0.2s ease'
+        }}>
             <CardContent sx={{ p: { xs: 3, md: 4 } }}>
                 <Stack direction={{ xs: 'column', md: 'row' }} spacing={4}>
                     
@@ -51,8 +61,8 @@ export const MissionCommitmentCard: React.FC<MissionCommitmentCardProps> = ({
                                 MONTHLY COMMITMENT
                             </Typography>
                             <Stack direction="row" spacing={0.5} alignItems="center">
-                                <AccountBalanceWalletIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.3)' }} />
-                                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontWeight: 700 }}>
+                                <AccountBalanceWalletIcon sx={{ fontSize: 14, color: isOverBalance ? ERROR_RED : 'rgba(255,255,255,0.3)' }} />
+                                <Typography variant="caption" sx={{ color: isOverBalance ? ERROR_RED : 'rgba(255,255,255,0.3)', fontWeight: 700 }}>
                                     {isBalanceLoading ? '...' : Number(walletBalance).toLocaleString()} {assetSymbol}
                                 </Typography>
                             </Stack>
@@ -63,11 +73,12 @@ export const MissionCommitmentCard: React.FC<MissionCommitmentCardProps> = ({
                             variant="outlined" 
                             value={monthlyAmount}
                             onChange={handleAmountChange}
-                            placeholder="0.00"
+                            placeholder="Enter commitment amount"
+                            error={isUnderMin}
                             InputProps={{ 
                                 endAdornment: (
                                     <InputAdornment position="end">
-                                        <Typography fontWeight={900} color={NEON_GREEN} sx={{ fontSize: '0.9rem' }}>
+                                        <Typography fontWeight={900} color={isUnderMin ? ERROR_RED : NEON_GREEN} sx={{ fontSize: '0.9rem' }}>
                                             {assetSymbol}
                                         </Typography>
                                     </InputAdornment>
@@ -75,27 +86,35 @@ export const MissionCommitmentCard: React.FC<MissionCommitmentCardProps> = ({
                                 sx: { 
                                     height: 64,
                                     borderRadius: 2, 
-                                    bgcolor: '#000', 
+                                    bgcolor: '#000',
                                     color: 'white', 
                                     fontSize: '1.2rem',
-                                    fontWeight: 900,
+                                    fontWeight: 600,
                                     '& fieldset': { borderColor: '#222' },
-                                    '&:hover fieldset': { borderColor: '#444 !important' },
-                                    '&.Mui-focused fieldset': { borderColor: `${NEON_GREEN} !important` }
+                                    '&:hover fieldset': { borderColor: isUnderMin ? ERROR_RED : '#444 !important' },
+                                    '&.Mui-focused fieldset': { borderColor: `${isUnderMin ? ERROR_RED : NEON_GREEN} !important` }
                                 }
                             }}
                         />
+                        {isUnderMin && (
+                            <Stack direction="row" spacing={0.5} alignItems="center" mt={1}>
+                                <ErrorOutlineIcon sx={{ fontSize: 14, color: ERROR_RED }} />
+                                <Typography variant="caption" sx={{ color: ERROR_RED, fontWeight: 700 }}>
+                                    MINIMUM COMMITMENT IS 10 {assetSymbol}
+                                </Typography>
+                            </Stack>
+                        )}
                     </Box>
 
                     <Box sx={{ flex: 1 }}>
                         <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
                             <Typography variant="overline" sx={{ color: 'rgba(255,255,255,0.5)', fontWeight: 900, letterSpacing: 1.5 }}>
-                                DURATION
+                                QUEST DURATION
                             </Typography>
                             <Stack direction="row" spacing={0.5} alignItems="center">
                                 <BoltIcon sx={{ fontSize: 14, color: NEON_GREEN }} />
                                 <Typography variant="caption" sx={{ color: NEON_GREEN, fontWeight: 900 }}>
-                                    BOOST YOUR DP
+                                    BOOST YIELD
                                 </Typography>
                             </Stack>
                         </Stack>
@@ -107,13 +126,13 @@ export const MissionCommitmentCard: React.FC<MissionCommitmentCardProps> = ({
                             onChange={(_, val) => val !== null && setDuration(val)}
                             sx={{ 
                                 height: 64, 
-                                bgcolor: 'rgba(0,0,0,0.8)', 
+                                bgcolor: '#000', 
                                 borderRadius: 2, 
                                 border: '1px solid #222', 
                                 p: '4px',
                                 '& .MuiToggleButtonGroup-grouped': { 
                                     border: 0, 
-                                    borderRadius: '6px !important',
+                                    borderRadius: '8px !important',
                                     mx: '2px'
                                 } 
                             }}
@@ -126,13 +145,14 @@ export const MissionCommitmentCard: React.FC<MissionCommitmentCardProps> = ({
                                         display: 'flex',
                                         flexDirection: 'column',
                                         color: 'rgba(255,255,255,0.3)',
-                                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        border: '1px solid transparent !important',
                                         '&.Mui-selected': { 
                                             color: '#000', 
                                             bgcolor: NEON_GREEN,
-                                            boxShadow: `0 0 15px ${NEON_GREEN}44`,
+                                            boxShadow: `0 0 20px ${NEON_GREEN}33`,
                                             '&:hover': { bgcolor: NEON_GREEN },
-                                            '& .multiplier-text': { color: 'rgba(0,0,0,0.5)' }
+                                            '& .multiplier-text': { color: 'rgba(0,0,0,0.6)' },
+                                            '& .label-text': { color: '#000' }
                                         },
                                         '&:hover': {
                                             bgcolor: 'rgba(255,255,255,0.05)',
@@ -140,14 +160,14 @@ export const MissionCommitmentCard: React.FC<MissionCommitmentCardProps> = ({
                                         }
                                     }}
                                 >
-                                    <Typography variant="body2" sx={{ fontWeight: 900, fontSize: '0.85rem' }}>
+                                    <Typography className="label-text" variant="body2" sx={{ fontWeight: 900, fontSize: '0.9rem' }}>
                                         {d.label}
                                     </Typography>
                                     <Typography 
                                         variant="caption" 
                                         className="multiplier-text"
                                         sx={{ 
-                                            fontSize: '0.6rem', 
+                                            fontSize: '0.65rem', 
                                             fontWeight: 800, 
                                             color: NEON_GREEN,
                                             lineHeight: 1
