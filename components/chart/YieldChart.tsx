@@ -7,133 +7,204 @@ import {
 import { Box, Typography, CircularProgress, Stack } from '@mui/material';
 
 const THEME_COLOR = '#00E08F'; 
+const VAULT_ADDRESS = process.env.NEXT_PUBLIC_HL_VAULT_ADDRESS || "0xdfc24b077bc1425ad1dea75bcb6f8158e10df303";
 
 interface ChartData {
     date: string;
-    apy: number;
-    rawFunding: number;
-    count?: number;
+    apr: number;
+    equity: number;
+    isMock?: boolean;
 }
 
 interface ApiResponse {
-    coin: string;
-    average30dApy: number;
+    vaultAddress: string;
+    tvl: number;
+    averageAnnualApr: number;
     history: ChartData[];
 }
 
-interface YieldChartProps {
+interface CustomDotProps {
+    cx?: number;
+    cy?: number;
+    payload?: ChartData;
+}
+
+interface VaultYieldChartProps {
     coin?: string;
     onApyLoad?: (apy: number) => void;
 }
 
-export default function YieldChart({ coin = 'BTC', onApyLoad }: YieldChartProps) {
+export default function VaultYieldChart({ coin, onApyLoad }: VaultYieldChartProps) {
     const [data, setData] = useState<ChartData[]>([]);
-    const [avgApy, setAvgApy] = useState<number>(0);
+    const [stats, setStats] = useState({ apr: 0, tvl: 0 });
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchData = async () => {
-        setLoading(true);
-        try {
-            const res = await fetch('/api/hyperliquid-funding', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ coin }) 
-            });
-            
-            const json = (await res.json()) as ApiResponse;
-            
-            if (json.history) {
-            setData(json.history);
-            setAvgApy(json.average30dApy);
-            if (onApyLoad) onApyLoad(json.average30dApy);
+            setLoading(true);
+            try {
+                const res = await fetch('/api/hyperliquid-funding', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        vaultAddress: VAULT_ADDRESS,
+                        coin: coin // ส่งชื่อเหรียญไปที่ API (ถ้าต้องการ)
+                    }) 
+                });
+                
+                const json = (await res.json()) as ApiResponse;
+                
+                if (json.history) {
+                    setData(json.history);
+                    setStats({
+                        apr: json.averageAnnualApr,
+                        tvl: json.tvl
+                    });
+
+                    if (onApyLoad) {
+                        onApyLoad(json.averageAnnualApr);
+                    }
+                }
+            } catch {
+                console.error("Failed to sync with Vault API");
+            } finally {
+                setLoading(false);
             }
-        } catch (e) {
-            console.error("Failed to load chart data:", e);
-        } finally {
-            setLoading(false);
-        }
         };
 
         fetchData();
     }, [coin, onApyLoad]);
 
-    if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4, height: 300, alignItems: 'center' }}><CircularProgress size={30} sx={{ color: THEME_COLOR }} /></Box>;
-    if (!data.length) return <Typography color="error">Data unavailable</Typography>;
+    const formatCurrency = (val: number) => {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            notation: 'compact',
+            maximumFractionDigits: 1
+        }).format(val);
+    };
+
+    if (loading) return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4, height: 400, alignItems: 'center' }}>
+            <CircularProgress size={30} sx={{ color: THEME_COLOR }} />
+        </Box>
+    );
 
     return (
-        <Box sx={{ width: '100%', height: 340, bgcolor: '#111', p: 3, borderRadius: 2, border: '1px solid #333' }}>
-        
-        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-            <Box>
-                <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
-                30-Day APY Performance
-                </Typography>
-                <Typography variant="caption" sx={{ color: '#888' }}>
-                Source: Hyperliquid Funding ({coin})
-                </Typography>
-            </Box>
-            <Box textAlign="right">
-                <Typography variant="h4" sx={{ color: THEME_COLOR, fontWeight: 'bold' }}>
-                    {avgApy.toFixed(2)}%
-                </Typography>
-                <Typography variant="caption" sx={{ color: '#888' }}>
-                    Avg 30d APY
-                </Typography>
-            </Box>
-        </Stack>
-        
-        <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={data}>
-            <defs>
-                <linearGradient id="colorApy" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={THEME_COLOR} stopOpacity={0.3}/>
-                <stop offset="95%" stopColor={THEME_COLOR} stopOpacity={0}/>
-                </linearGradient>
-            </defs>
+        <Box sx={{ 
+            width: '100%', bgcolor: '#0a0a0a', p: 3, borderRadius: 2, 
+            border: '1px solid #222'
+        }}>
             
-            <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
+            <Stack direction="row" justifyContent="space-between" alignItems="flex-end" mb={4}>
+                <Box>
+                    <Typography variant="overline" sx={{ color: '#666', fontWeight: 800, letterSpacing: 2 }}>
+                        Vault Performance
+                    </Typography>
+                    <Typography variant="h5" sx={{ color: 'white', fontWeight: 900 }}>
+                        {VAULT_ADDRESS === "0xdfc24b077bc1425ad1dea75bcb6f8158e10df303" ? 'HLP Strategy' : 'Hyperliquidity Provider (HLP)'}
+                    </Typography>
+                </Box>
+                
+                <Stack direction="row" spacing={4} textAlign="right">
+                    <Box>
+                        <Typography variant="caption" sx={{ color: '#666', display: 'block' }}>TOTAL TVL</Typography>
+                        <Typography variant="h6" sx={{ color: 'white', fontWeight: 800 }}>
+                            {formatCurrency(stats.tvl)}
+                        </Typography>
+                    </Box>
+                    <Box>
+                        <Typography variant="caption" sx={{ color: THEME_COLOR, display: 'block' }}>AVG 30 Day APR</Typography>
+                        <Typography variant="h4" sx={{ color: THEME_COLOR, fontWeight: 900, lineHeight: 1 }}>
+                            {stats.apr.toFixed(2)}%
+                        </Typography>
+                    </Box>
+                </Stack>
+            </Stack>
+
+            <ResponsiveContainer width="100%" height={250}>
+                <AreaChart data={data} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                    <defs>
+                        <linearGradient id="colorApr" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={THEME_COLOR} stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor={THEME_COLOR} stopOpacity={0}/>
+                        </linearGradient>
+                    </defs>
+                    
+                    <CartesianGrid strokeDasharray="3 3" stroke="#111" vertical={false} />
+                    
+                    <XAxis 
+                        dataKey="date" 
+                        tick={{ fill: '#444', fontSize: 11, fontWeight: 600 }} 
+                        axisLine={false}
+                        tickLine={false}
+                    />
+                    
+                    <YAxis 
+                        orientation="right" 
+                        tick={{ fill: '#444', fontSize: 11, fontWeight: 600 }} 
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(val: number) => `${val}%`}
+                    />
+                    
+                    <Tooltip 
+                        contentStyle={{ backgroundColor: '#000', border: '1px solid #333', borderRadius: '12px' }}
+                        formatter={(value: number | string | undefined) => {
+                            const valNum = value !== undefined ? (typeof value === 'string' ? parseFloat(value) : value) : 0;
+                            
+                            return [
+                                <span key="yield-info" style={{ color: THEME_COLOR, fontWeight: 800 }}>
+                                    {valNum.toFixed(2)}%
+                                </span>,
+                                'Annual Yield'
+                            ];
+                        }}
+                        labelFormatter={(label, payload) => {
+                            const isMock = payload?.[0]?.payload?.isMock;
+                            return `${label} ${isMock ? '(Projected)' : ''}`;
+                        }}
+                    />
+                    
+                    <Area 
+                        type="monotone" 
+                        dataKey="apr" 
+                        stroke={THEME_COLOR} 
+                        strokeWidth={3}
+                        fill="url(#colorApr)" 
+                        strokeDasharray={data.some(d => d.isMock) ? "5 5" : "0"}
+                        dot={(props: CustomDotProps) => {
+                            const { cx, cy, payload } = props;
+                            if (typeof cx !== 'number' || typeof cy !== 'number' || payload?.isMock) {
+                                return <path key={`empty-${Math.random()}`} />; 
+                            }
+                            
+                            return (
+                                <circle 
+                                    key={`dot-${cx}-${cy}`} 
+                                    cx={cx} 
+                                    cy={cy} 
+                                    r={4} 
+                                    fill={THEME_COLOR} 
+                                    stroke="#000" 
+                                    strokeWidth={2} 
+                                />
+                            );
+                        }}
+                    />
+                </AreaChart>
+            </ResponsiveContainer>
             
-            <XAxis 
-                dataKey="date" 
-                tick={{ fill: '#666', fontSize: 11 }} 
-                axisLine={false}
-                tickLine={false}
-                minTickGap={30}
-            />
-            
-            <YAxis 
-                orientation="right" 
-                tick={{ fill: '#666', fontSize: 11 }} 
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(val: number) => `${val.toFixed(1)}%`}
-                domain={['auto', 'auto']}
-                width={40}
-            />
-            
-            <Tooltip 
-                contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333', color: '#fff', borderRadius: '8px' }}
-                formatter={(value: number | string | Array<number | string> | undefined): [string, string] => {
-                if (typeof value === 'number') {
-                    return [`${value.toFixed(2)}%`, 'Net APY'];
-                }
-                return ['N/A', 'Net APY'];
-                }}
-                labelStyle={{ color: '#aaa', marginBottom: '0.25rem' }}
-            />
-            
-            <Area 
-                type="monotone" 
-                dataKey="apy" 
-                stroke={THEME_COLOR} 
-                strokeWidth={2}
-                fillOpacity={1} 
-                fill="url(#colorApy)" 
-                isAnimationActive={true}
-            />
-            </AreaChart>
-        </ResponsiveContainer>
+            <Stack direction="row" spacing={3} mt={2} justifyContent="center">
+                <Stack direction="row" alignItems="center" spacing={1}>
+                    <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: THEME_COLOR }} />
+                    <Typography variant="caption" sx={{ color: '#666', fontWeight: 600 }}>HISTORICAL DATA</Typography>
+                </Stack>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                    <Box sx={{ width: 12, height: 12, borderRadius: '50%', border: `2px dashed ${THEME_COLOR}` }} />
+                    <Typography variant="caption" sx={{ color: '#666', fontWeight: 600 }}>PROJECTED ESTIMATE</Typography>
+                </Stack>
+            </Stack>
         </Box>
     );
 }
