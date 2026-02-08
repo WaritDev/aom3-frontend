@@ -1,440 +1,474 @@
-export const AOM3_VAULT_ADDRESS = "0x4E6822A38ae1b540940b54eEC925Eb88285d991a" as const;
-export const AOM3_STRATEGY_ADDRESS = "0xa338661A27fCc4a8FD50dae1058eD9E8cf37BEA3" as const;
-export const AOM3_REWARD_DISTRIBUTOR_ADDRESS = "0x48D25aEA01BFf105790dFc13170caf4B1bf682c4" as const;
-export const AOM3_RANKING_ADDRESS = "0xffF0E9eeF410e9418EB773d560E667FdAd9DB278" as const;
-export const USDC_ADDRESS = "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d" as const;
+export const AOM3_STRATEGY_ADDRESS = "0x8a32F4e0Ab18ba2504474163A7CFE9A2Ef16f679" as const;
+export const AOM3_RANKING_ADDRESS = "0xD09e17C1Aed24F50d5Ae4b164cb7fb1a5769C393" as const;
+export const AOM3_VAULT_ADDRESS = "0x04CD0791244c1b40b6AA6cca1831a23152974e0a" as const;
+export const AOM3_REWARD_DISTRIBUTOR_ADDRESS = "0xC7BBB5689765De9a78368841AE6bc3c335F92BB0" as const;
+export const USDC_ADDRESS = "0x1baAbB04529D43a73232B713C0FE471f7c7334d5" as const;
 
 export const AOM3_VAULT_ABI = [
 {
-    "inputs": [
-    {
-        "internalType": "address",
-        "name": "_usdc",
-        "type": "address"
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_ranking",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_usdc",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_bridge",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
     },
     {
-        "internalType": "address",
-        "name": "_yieldStrategy",
-        "type": "address"
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnableInvalidOwner",
+      "type": "error"
     },
     {
-        "internalType": "address",
-        "name": "_ranking",
-        "type": "address"
-    }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "constructor"
-},
-{
-    "inputs": [
-    {
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
-    }
-    ],
-    "name": "OwnableInvalidOwner",
-    "type": "error"
-},
-{
-    "inputs": [
-    {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-    }
-    ],
-    "name": "OwnableUnauthorizedAccount",
-    "type": "error"
-},
-{
-    "inputs": [],
-    "name": "ReentrancyGuardReentrantCall",
-    "type": "error"
-},
-{
-    "anonymous": false,
-    "inputs": [
-    {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "questId",
-        "type": "uint256"
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "OwnableUnauthorizedAccount",
+      "type": "error"
     },
     {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
+      "inputs": [],
+      "name": "ReentrancyGuardReentrantCall",
+      "type": "error"
     },
     {
-        "indexed": false,
-        "internalType": "bool",
-        "name": "insideWindow",
-        "type": "bool"
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "questId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "bonusDP",
+          "type": "uint256"
+        }
+      ],
+      "name": "DepositSynced",
+      "type": "event"
     },
     {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "bonusDP",
-        "type": "uint256"
-    }
-    ],
-    "name": "DepositExecuted",
-    "type": "event"
-},
-{
-    "anonymous": false,
-    "inputs": [
-    {
-        "indexed": true,
-        "internalType": "address",
-        "name": "previousOwner",
-        "type": "address"
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "previousOwner",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnershipTransferred",
+      "type": "event"
     },
     {
-        "indexed": true,
-        "internalType": "address",
-        "name": "newOwner",
-        "type": "address"
-    }
-    ],
-    "name": "OwnershipTransferred",
-    "type": "event"
-},
-{
-    "anonymous": false,
-    "inputs": [
-    {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "questId",
-        "type": "uint256"
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "questId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "dp",
+          "type": "uint256"
+        }
+      ],
+      "name": "QuestCreated",
+      "type": "event"
     },
     {
-        "indexed": true,
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "questId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "dpSubtracted",
+          "type": "uint256"
+        }
+      ],
+      "name": "WithdrawalClosed",
+      "type": "event"
     },
     {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
+      "inputs": [],
+      "name": "bridge",
+      "outputs": [
+        {
+          "internalType": "contract IHyperliquidBridge",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
     },
     {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "dp",
-        "type": "uint256"
-    }
-    ],
-    "name": "QuestCreated",
-    "type": "event"
-},
-{
-    "anonymous": false,
-    "inputs": [
-    {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "questId",
-        "type": "uint256"
+      "inputs": [
+        {
+          "internalType": "uint64",
+          "name": "_monthlyAmount",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_durationMonths",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint64",
+          "name": "_deadline",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint8",
+          "name": "v",
+          "type": "uint8"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "r",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "s",
+          "type": "bytes32"
+        }
+      ],
+      "name": "createQuestWithPermit",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
     },
     {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_questId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint64",
+          "name": "_deadline",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint8",
+          "name": "v",
+          "type": "uint8"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "r",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "s",
+          "type": "bytes32"
+        }
+      ],
+      "name": "depositWithPermit",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
     },
     {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "dpSubtracted",
-        "type": "uint256"
-    }
-    ],
-    "name": "WithdrawalExecuted",
-    "type": "event"
-},
-{
-    "inputs": [
-    {
-        "internalType": "uint256",
-        "name": "_monthlyAmount",
-        "type": "uint256"
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_months",
+          "type": "uint256"
+        }
+      ],
+      "name": "getMultiplier",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
     },
     {
-        "internalType": "uint256",
-        "name": "_durationMonths",
-        "type": "uint256"
-    }
-    ],
-    "name": "createQuest",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-},
-{
-    "inputs": [
-    {
-        "internalType": "uint256",
-        "name": "_questId",
-        "type": "uint256"
-    }
-    ],
-    "name": "deposit",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-},
-{
-    "inputs": [
-    {
-        "internalType": "uint256",
-        "name": "timestamp",
-        "type": "uint256"
-    }
-    ],
-    "name": "getDayOfMonth",
-    "outputs": [
-    {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-    }
-    ],
-    "stateMutability": "pure",
-    "type": "function"
-},
-{
-    "inputs": [
-    {
-        "internalType": "uint256",
-        "name": "_months",
-        "type": "uint256"
-    }
-    ],
-    "name": "getMultiplier",
-    "outputs": [
-    {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-    }
-    ],
-    "stateMutability": "pure",
-    "type": "function"
-},
-{
-    "inputs": [],
-    "name": "isInsideWindow",
-    "outputs": [
-    {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-    }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-},
-{
-    "inputs": [
-    {
-        "internalType": "uint256",
-        "name": "_currentTimestamp",
-        "type": "uint256"
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_user",
+          "type": "address"
+        }
+      ],
+      "name": "getWithdrawalLockInfo",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "remainingSeconds",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "isLocked",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
     },
     {
-        "internalType": "uint256",
-        "name": "_lastTimestamp",
-        "type": "uint256"
-    }
-    ],
-    "name": "isNewMonth",
-    "outputs": [
-    {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-    }
-    ],
-    "stateMutability": "pure",
-    "type": "function"
-},
-{
-    "inputs": [],
-    "name": "nextQuestId",
-    "outputs": [
-    {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-    }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-},
-{
-    "inputs": [],
-    "name": "owner",
-    "outputs": [
-    {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-    }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-},
-{
-    "inputs": [
-    {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-    }
-    ],
-    "name": "quests",
-    "outputs": [
-    {
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
+      "inputs": [],
+      "name": "isInsideWindow",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
     },
     {
-        "internalType": "uint256",
-        "name": "monthlyAmount",
-        "type": "uint256"
+      "inputs": [],
+      "name": "nextQuestId",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
     },
     {
-        "internalType": "uint256",
-        "name": "totalDeposited",
-        "type": "uint256"
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
     },
     {
-        "internalType": "uint256",
-        "name": "currentStreak",
-        "type": "uint256"
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "quests",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "monthlyAmount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "totalDeposited",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "currentStreak",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "durationMonths",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "startTimestamp",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "lastDepositTimestamp",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "dp",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "active",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
     },
     {
-        "internalType": "uint256",
-        "name": "durationMonths",
-        "type": "uint256"
+      "inputs": [],
+      "name": "ranking",
+      "outputs": [
+        {
+          "internalType": "contract IAOM3Ranking",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
     },
     {
-        "internalType": "uint256",
-        "name": "startTimestamp",
-        "type": "uint256"
+      "inputs": [],
+      "name": "renounceOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
     },
     {
-        "internalType": "uint256",
-        "name": "lastDepositTimestamp",
-        "type": "uint256"
+      "inputs": [],
+      "name": "totalDisciplinePoints",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
     },
     {
-        "internalType": "uint256",
-        "name": "dp",
-        "type": "uint256"
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "transferOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
     },
     {
-        "internalType": "bool",
-        "name": "active",
-        "type": "bool"
-    }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-},
-{
-    "inputs": [],
-    "name": "ranking",
-    "outputs": [
+      "inputs": [],
+      "name": "usdc",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
     {
-        "internalType": "contract IAOM3Ranking",
-        "name": "",
-        "type": "address"
-    }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-},
-{
-    "inputs": [],
-    "name": "renounceOwnership",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-},
-{
-    "inputs": [],
-    "name": "totalDisciplinePoints",
-    "outputs": [
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "userBalance",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
     {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_questId",
+          "type": "uint256"
+        }
+      ],
+      "name": "withdraw",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
     }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-},
-{
-    "inputs": [
-    {
-        "internalType": "address",
-        "name": "newOwner",
-        "type": "address"
-    }
-    ],
-    "name": "transferOwnership",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-},
-{
-    "inputs": [],
-    "name": "usdc",
-    "outputs": [
-    {
-        "internalType": "contract IERC20",
-        "name": "",
-        "type": "address"
-    }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-},
-{
-    "inputs": [
-    {
-        "internalType": "uint256",
-        "name": "_questId",
-        "type": "uint256"
-    }
-    ],
-    "name": "withdraw",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-},
-{
-    "inputs": [],
-    "name": "yieldStrategy",
-    "outputs": [
-    {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-    }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-}
 ] as const;
 
 export const USDC_ABI = [
@@ -1042,3 +1076,529 @@ export const AOM3_RANKING_ABI = [
     "type": "function"
 }
 ] as const;
+
+export const AOM3_STRATEGY_ABI = [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_usdc2",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnableInvalidOwner",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "OwnableUnauthorizedAccount",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "Deposit",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "timestamp",
+          "type": "uint256"
+        }
+      ],
+      "name": "DepositSynced",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "previousOwner",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnershipTransferred",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "totalProfit",
+          "type": "uint256"
+        }
+      ],
+      "name": "PnLReported",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "total",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "fee",
+          "type": "uint256"
+        }
+      ],
+      "name": "WithdrawalRequested",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "WithdrawalSynced",
+      "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "HL_BRIDGE",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "LOCK_PERIOD",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "botAddress",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "bridgeToHyperliquid",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "deposit",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "token",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "emergencyWithdraw",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        }
+      ],
+      "name": "getRemainingLockTime",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "lastDepositTime",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "totalAmount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "feeAmount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        }
+      ],
+      "name": "redeemWithFee",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "totalAmount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "feeAmount",
+          "type": "uint256"
+        }
+      ],
+      "name": "redeemWithFeeSync",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "renounceOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_profitAmount",
+          "type": "uint256"
+        }
+      ],
+      "name": "reportPnL",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "rewardDistributor",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_bot",
+          "type": "address"
+        }
+      ],
+      "name": "setBotAddress",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_distributor",
+          "type": "address"
+        }
+      ],
+      "name": "setRewardDistributor",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_vault",
+          "type": "address"
+        }
+      ],
+      "name": "setVault",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "syncDeposit",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "totalActiveCapital",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "transferOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "usdc2",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "userBalance",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "vault",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "withdrawalRequests",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "total",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "fee",
+          "type": "uint256"
+        },
+        {
+          "internalType": "enum AOM3Strategy.Status",
+          "name": "status",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ] as const;
