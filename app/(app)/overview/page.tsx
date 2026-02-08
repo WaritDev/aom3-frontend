@@ -4,14 +4,17 @@ import React, { useState, useMemo } from 'react';
 import { 
     Container, Typography, Box, Card, CardContent, Stack, 
     Button, Chip, Divider, CircularProgress,
-    Fade, Grow, Zoom 
+    Fade, Grow, Zoom, Tooltip
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 
 import { useAOM3 } from '@/hooks/useAOM3';
+import { useHL } from '@/hooks/useHL'; 
 import { useAccount, useReadContracts } from 'wagmi';
 import { DynamicPlanCard } from '@/components/card/DynamicPlanCard';
 import { AOM3_VAULT_ADDRESS, AOM3_VAULT_ABI } from '@/constants/contracts';
@@ -32,242 +35,195 @@ type QuestResult = readonly [
 ];
 
 export default function OverviewPage() {
-  const { address } = useAccount();
-  const [isClaiming, setIsClaiming] = useState(false);
-  
-  const { 
-    isWindowOpen, 
-    nextQuestId, 
-    rewardPoolBalance, 
-    totalDP: globalTotalDP, 
-    currentDay,
-    claimRewardAction
-  } = useAOM3();
+    const { address } = useAccount();
+    const [isClaiming, setIsClaiming] = useState(false);
+    
+    const { 
+        isWindowOpen, nextQuestId, rewardPoolBalance, 
+        totalDP: globalTotalDP, currentDay, claimRewardAction 
+    } = useAOM3();
 
-  const questIds = useMemo(() => 
-    Array.from({ length: Number(nextQuestId || 0) }, (_, i) => BigInt(i)), 
-    [nextQuestId]
-  );
+    const { 
+        hlBalance, vaultEquity, vaultApr, vaultPnl,
+        isAutoInvesting, hasAgent, createAndApproveAgent 
+    } = useHL();
 
-  const { data: allQuestsData } = useReadContracts({
-    contracts: questIds.map(id => ({
-      address: AOM3_VAULT_ADDRESS as `0x${string}`,
-      abi: AOM3_VAULT_ABI,
-      functionName: 'quests',
-      args: [id],
-    }))
-  });
+    const questIds = useMemo(() => 
+        Array.from({ length: Number(nextQuestId || 0) }, (_, i) => BigInt(i)), 
+        [nextQuestId]
+    );
 
-  const { userTotalDP, myQuestIds } = useMemo(() => {
-    let total = 0;
-    const mine: bigint[] = [];
-    if (allQuestsData && address) {
-      allQuestsData.forEach((res, index) => {
-        if (res.status === 'success' && res.result) {
-          const quest = res.result as unknown as QuestResult; 
-          const owner = quest[0];
-          const dpAmount = Number(quest[7]);
-          const isActive = quest[8];
-          if (owner.toLowerCase() === address.toLowerCase() && isActive) {
-            total += dpAmount;
-            mine.push(BigInt(index));
-          }
-        }
-      });
-    }
-    return { userTotalDP: total, myQuestIds: mine };
-  }, [allQuestsData, address]);
-
-  const sortedMyQuestIds = useMemo(() => {
-    if (!allQuestsData || myQuestIds.length === 0) return [];
-
-    return [...myQuestIds].sort((a, b) => {
-      const resA = allQuestsData[Number(a)];
-      const resB = allQuestsData[Number(b)];
-
-      if (resA.status === 'success' && resB.status === 'success') {
-        const questA = resA.result as unknown as QuestResult;
-        const questB = resB.result as unknown as QuestResult;
-
-        const dpA = Number(questA[7]);
-        const dpB = Number(questB[7]);
-
-        return dpB - dpA;
-      }
-      return 0;
+    const { data: allQuestsData } = useReadContracts({
+        contracts: questIds.map(id => ({
+        address: AOM3_VAULT_ADDRESS as `0x${string}`,
+        abi: AOM3_VAULT_ABI,
+        functionName: 'quests',
+        args: [id],
+        }))
     });
-  }, [myQuestIds, allQuestsData]);
 
-  const networkShare = globalTotalDP > 0 ? (userTotalDP / Number(globalTotalDP)) * 100 : 0;
-  const estimatedReward = (networkShare / 100) * Number(rewardPoolBalance);
-  const isClaimDay = currentDay === 1 || currentDay === 16;
+    const { userTotalDP, myQuestIds } = useMemo(() => {
+        let total = 0;
+        const mine: bigint[] = [];
+        if (allQuestsData && address) {
+        allQuestsData.forEach((res) => {
+            if (res.status === 'success' && res.result) {
+            const quest = res.result as unknown as QuestResult; 
+            if (quest[0].toLowerCase() === address.toLowerCase() && quest[8]) {
+                total += Number(quest[7]);
+                mine.push(BigInt(allQuestsData.indexOf(res)));
+            }
+            }
+        });
+        }
+        return { userTotalDP: total, myQuestIds: mine };
+    }, [allQuestsData, address]);
 
-  const handleClaimAll = async () => {
-    if (myQuestIds.length === 0) return;
-    setIsClaiming(true);
-    try {
-      for (const id of myQuestIds) {
-        try { await claimRewardAction(Number(id)); } catch (e) { console.error(e); }
-      }
-    } finally {
-      setIsClaiming(false);
-    }
-  };
+    const sortedMyQuestIds = useMemo(() => {
+        if (!allQuestsData || myQuestIds.length === 0) return [];
+        return [...myQuestIds].sort((a, b) => {
+        const resA = allQuestsData[Number(a)];
+        const resB = allQuestsData[Number(b)];
+        if (resA.status === 'success' && resB.status === 'success') {
+            const qA = resA.result as unknown as QuestResult;
+            const qB = resB.result as unknown as QuestResult;
+            return Number(qB[7]) - Number(qA[7]);
+        }
+        return 0;
+        });
+    }, [myQuestIds, allQuestsData]);
 
-  return (
-    <Container maxWidth="lg" sx={{ py: 8 }}>
-      
-      <Fade in timeout={800}>
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-end" sx={{ mb: 5 }}>
-            <Box>
-                <Typography variant="overline" sx={{ color: NEON_GREEN, fontWeight: 900, letterSpacing: 3 }}>
-                    OPERATIONAL TERMINAL
-                </Typography>
-                <Typography variant="h3" fontWeight="900" sx={{ letterSpacing: -2, lineHeight: 1 }}>
-                    QUEST <Box component="span" sx={{ color: NEON_GREEN, textShadow: `0 0 20px ${NEON_GREEN}55` }}>DASHBOARD</Box>
-                </Typography>
-            </Box>
-            <Chip 
-                label={isWindowOpen ? "SYSTEM ACTIVE" : "VAULT STANDBY"} 
-                sx={{ 
-                    bgcolor: isWindowOpen ? `${NEON_GREEN}15` : 'transparent', 
-                    color: isWindowOpen ? NEON_GREEN : '#555',
-                    border: `1px solid ${isWindowOpen ? NEON_GREEN : '#333'}`,
-                    fontWeight: 900,
-                    borderRadius: 2
-                }} 
-            />
-        </Stack>
-      </Fade>
+    const networkShare = globalTotalDP > 0 ? (userTotalDP / Number(globalTotalDP)) * 100 : 0;
+    const estimatedReward = (networkShare / 100) * Number(rewardPoolBalance);
+    const isClaimDay = currentDay === 1 || currentDay === 16;
 
-      <Grow in timeout={1000}>
-        <Card sx={{ 
-            background: 'linear-gradient(145deg, #0a1a0f 0%, #000 100%)', 
-            border: `1px solid ${NEON_GREEN}33`, 
-            mb: 8, 
-            borderRadius: 3,
-            boxShadow: `0 20px 60px rgba(0,0,0,0.8), 0 0 20px ${NEON_GREEN}11`,
-            overflow: 'visible'
-        }}>
-            <CardContent sx={{ p: { xs: 3, md: 5 } }}>
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={{ xs: 5, md: 0 }}>
-                <Box sx={{ flex: 1 }}>
-                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
-                        <AccountBalanceIcon sx={{ color: NEON_GREEN, fontSize: 20 }} />
-                        <Typography variant="overline" sx={{ color: 'rgba(255,255,255,0.5)', fontWeight: 900, letterSpacing: 2 }}>
-                            GLOBAL TREASURY
-                        </Typography>
-                    </Stack>
-                    <Typography variant="h2" fontWeight="900" sx={{ color: 'white', letterSpacing: -2, mb: 1 }}>
-                        ${Number(rewardPoolBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>
-                        Protocol penalties waiting for next cycle distribution.
+    const handleClaimAll = async () => {
+        if (myQuestIds.length === 0) return;
+        setIsClaiming(true);
+        try {
+        for (const id of myQuestIds) {
+            try { await claimRewardAction(Number(id)); } catch (e) { console.error(e); }
+        }
+        } finally {
+        setIsClaiming(false);
+        }
+    };
+
+    return (
+        <Container maxWidth="lg" sx={{ py: 8 }}>
+        
+        <Fade in timeout={800}>
+            <Stack direction="row" justifyContent="space-between" alignItems="flex-end" sx={{ mb: 5 }}>
+                <Box>
+                    <Typography variant="overline" sx={{ color: NEON_GREEN, fontWeight: 900, letterSpacing: 3 }}>OPERATIONAL TERMINAL</Typography>
+                    <Typography variant="h3" fontWeight="900" sx={{ letterSpacing: -2, lineHeight: 1 }}>
+                        QUEST <Box component="span" sx={{ color: NEON_GREEN }}>DASHBOARD</Box>
                     </Typography>
                 </Box>
-
-                <Box sx={{ flex: 1.6 }}>
-                <Stack spacing={4}>
-                    <Stack direction="row" justifyContent="space-between">
-                        <Box>
-                            <Typography variant="caption" sx={{ color: GOLD_COLOR, fontWeight: 900, display: 'block', mb: 0.5 }}>YOUR DISCIPLINE</Typography>
-                            <Typography variant="h5" fontWeight="900" color="white">{userTotalDP.toLocaleString()} <small style={{ fontSize: '0.8rem', opacity: 0.5 }}>DP</small></Typography>
-                        </Box>
-                        <Box sx={{ textAlign: 'right' }}>
-                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 900, display: 'block', mb: 0.5 }}>NETWORK LOAD</Typography>
-                            <Typography variant="h5" fontWeight="900" color="white">{Number(globalTotalDP).toLocaleString()} <small style={{ fontSize: '0.8rem', opacity: 0.5 }}>DP</small></Typography>
-                        </Box>
-                    </Stack>
-
-                    <Stack direction="row" justifyContent="space-between" sx={{ p: 2.5, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.05)' }}>
-                        <Box>
-                            <Typography variant="caption" sx={{ color: NEON_GREEN, fontWeight: 900, display: 'block' }}>POOL SHARE</Typography>
-                            <Typography variant="h6" fontWeight="900" color="white">{networkShare.toFixed(3)}%</Typography>
-                        </Box>
-                        <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.05)' }} />
-                        <Box sx={{ textAlign: 'right' }}>
-                            <Typography variant="caption" sx={{ color: GOLD_COLOR, fontWeight: 900, display: 'block' }}>EST. REWARD</Typography>
-                            <Typography variant="h6" fontWeight="900" color={GOLD_COLOR}>${estimatedReward.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Typography>
-                        </Box>
-                    </Stack>
-
-                    <Box sx={{ 
-                        p: 2, 
-                        borderRadius: 2, 
-                        background: isClaimDay ? `linear-gradient(90deg, ${GOLD_COLOR}15 0%, transparent 100%)` : 'rgba(255,255,255,0.02)',
-                        border: `1px solid ${isClaimDay ? GOLD_COLOR : 'rgba(255,255,255,0.05)'}`,
-                        transition: '0.3s'
-                    }}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Stack direction="row" spacing={2} alignItems="center">
-                            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: isClaimDay ? GOLD_COLOR : '#333', boxShadow: isClaimDay ? `0 0 10px ${GOLD_COLOR}` : 'none' }} />
-                            <Typography variant="subtitle2" color="white" fontWeight="800">
-                            {isClaimDay ? "Rewards Available" : "Next Payout: 1st & 16th Every Month"}
-                            </Typography>
-                        </Stack>
-                        <Button 
-                            variant="contained" 
-                            disabled={!isClaimDay || isClaiming || myQuestIds.length === 0}
-                            onClick={handleClaimAll}
-                            startIcon={isClaiming ? <CircularProgress size={16} color="inherit" /> : <WorkspacePremiumIcon />}
-                            sx={{ 
-                                bgcolor: GOLD_COLOR, color: '#000', fontWeight: 900, borderRadius: 2, px: 3,
-                                '&:hover': { bgcolor: '#FFC107', transform: 'translateY(-2px)' },
-                                transition: '0.2s'
-                            }}
-                        >
-                            {isClaiming ? "SYNCING..." : "CLAIM ALL"}
-                        </Button>
-                    </Stack>
-                    </Box>
+                
+                <Stack direction="row" spacing={2}>
+                    <Tooltip title={hasAgent ? "Automator Active" : "Click to enable"}>
+                        <Chip 
+                            icon={<SmartToyIcon style={{ color: hasAgent ? NEON_GREEN : '#555' }} />}
+                            label={hasAgent ? "AGENT READY" : "AGENT OFFLINE"} 
+                            onClick={!hasAgent ? createAndApproveAgent : undefined}
+                            sx={{ bgcolor: hasAgent ? `${NEON_GREEN}10` : 'transparent', color: hasAgent ? NEON_GREEN : '#555', border: `1px solid ${hasAgent ? NEON_GREEN : '#333'}`, fontWeight: 900, borderRadius: 2, cursor: hasAgent ? 'default' : 'pointer' }} 
+                        />
+                    </Tooltip>
+                    <Chip label={isWindowOpen ? "SYSTEM ACTIVE" : "VAULT STANDBY"} sx={{ bgcolor: isWindowOpen ? `${NEON_GREEN}15` : 'transparent', color: isWindowOpen ? NEON_GREEN : '#555', border: `1px solid ${isWindowOpen ? NEON_GREEN : '#333'}`, fontWeight: 900, borderRadius: 2 }} />
                 </Stack>
-                </Box>
             </Stack>
-            </CardContent>
-        </Card>
-      </Grow>
+        </Fade>
 
-      <Fade in timeout={1200}>
-        <Stack spacing={4}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="h5" fontWeight="900" sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <AssessmentIcon sx={{ color: NEON_GREEN }} /> ACTIVE STRATEGIES 
-                <Box component="span" sx={{ px: 1.5, py: 0.5, bgcolor: '#111', borderRadius: 1.5, fontSize: '0.9rem', color: '#666', border: '1px solid #222' }}>
-                    {myQuestIds.length}
+        {isAutoInvesting && (
+            <Grow in>
+                <Box sx={{ mb: 4, p: 2, borderRadius: 2, bgcolor: `${NEON_GREEN}10`, border: `1px solid ${NEON_GREEN}44`, display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <CircularProgress size={20} sx={{ color: NEON_GREEN }} />
+                    <Typography variant="body2" sx={{ color: NEON_GREEN, fontWeight: 800 }}>AUTOMATOR ACTIVE: TRANSFERRING ${hlBalance} TO VAULT...</Typography>
                 </Box>
-            </Typography>
-            <Button 
-                variant="outlined" 
-                startIcon={<AddCircleOutlineIcon />} 
-                href="/deposit" 
-                sx={{ borderRadius: 2, color: '#FFF', borderColor: '#333', px: 3, fontWeight: 800, '&:hover': { borderColor: NEON_GREEN, color: NEON_GREEN } }}
-            >
-                NEW QUEST
-            </Button>
-            </Stack>
-            
-            <Stack spacing={3}>
-            {sortedMyQuestIds.length > 0 ? (
-                sortedMyQuestIds.map((id, index) => (
-                    <Zoom in key={id.toString()} timeout={800 + (index * 200)}>
-                        <Box>
-                            <DynamicPlanCard questId={id} />
+            </Grow>
+        )}
+
+        <Grow in timeout={1000}>
+            <Card sx={{ background: 'linear-gradient(145deg, #0a120b 0%, #000 100%)', border: `1px solid ${NEON_GREEN}33`, mb: 4, borderRadius: 3, boxShadow: `0 20px 60px rgba(0,0,0,0.8)` }}>
+                <CardContent sx={{ p: 4 }}>
+                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} divider={<Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.05)' }} />}>
+                        <Box sx={{ flex: 1 }}>
+                            <Typography variant="caption" sx={{ color: NEON_GREEN, fontWeight: 900, display: 'block', mb: 1 }}>MY VAULT EQUITY</Typography>
+                            <Typography variant="h3" fontWeight="900" color="white">${Number(vaultEquity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Typography>
+                            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                                <TrendingUpIcon sx={{ fontSize: 16, color: Number(vaultPnl) >= 0 ? NEON_GREEN : '#FF4444' }} />
+                                <Typography variant="body2" sx={{ color: Number(vaultPnl) >= 0 ? NEON_GREEN : '#FF4444', fontWeight: 800 }}>
+                                    {Number(vaultPnl) >= 0 ? '+' : ''}${Number(vaultPnl).toFixed(2)} USD PnL
+                                </Typography>
+                            </Stack>
                         </Box>
-                    </Zoom>
-                ))
-            ) : (
-                <Box sx={{ py: 12, textAlign: 'center', border: '2px dashed #1A1A1A', borderRadius: 3, bgcolor: 'rgba(255,255,255,0.01)' }}>
-                    <Typography variant="h6" color="rgba(255,255,255,0.3)" fontWeight="700">
-                        No active missions detected.
+                        <Box sx={{ flex: 1, textAlign: 'center' }}>
+                            <Typography variant="caption" sx={{ color: GOLD_COLOR, fontWeight: 900, display: 'block', mb: 1 }}>VAULT YIELD (APR)</Typography>
+                            <Typography variant="h3" fontWeight="900" color={GOLD_COLOR}>{(vaultApr * 100).toFixed(2)}%</Typography>
+                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.4)', mt: 1 }}>Est. Monthly: +{((vaultApr / 12) * 100).toFixed(2)}%</Typography>
+                        </Box>
+                    </Stack>
+                </CardContent>
+            </Card>
+        </Grow>
+
+        <Grow in timeout={1100}>
+            <Card sx={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', mb: 8, borderRadius: 3 }}>
+                <CardContent sx={{ p: 4 }}>
+                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} alignItems="center">
+                        <Box sx={{ flex: 1 }}>
+                            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
+                                <AccountBalanceIcon sx={{ color: NEON_GREEN, fontSize: 18 }} />
+                                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 900 }}>GLOBAL TREASURY</Typography>
+                            </Stack>
+                            <Typography variant="h4" fontWeight="900" color="white">${Number(rewardPoolBalance).toLocaleString()}</Typography>
+                            <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
+                                <Typography variant="caption" sx={{ color: GOLD_COLOR, fontWeight: 800 }}>L1 CASH: ${Number(hlBalance).toFixed(2)}</Typography>
+                            </Stack>
+                        </Box>
+
+                        <Box sx={{ flex: 1.5, p: 2, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                <Box>
+                                    <Typography variant="caption" sx={{ color: GOLD_COLOR, fontWeight: 900, display: 'block' }}>EST. REWARD</Typography>
+                                    <Typography variant="h5" fontWeight="900" color={GOLD_COLOR}>${estimatedReward.toLocaleString()}</Typography>
+                                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)' }}>Share: {networkShare.toFixed(3)}%</Typography>
+                                </Box>
+                                <Button 
+                                    variant="contained" 
+                                    disabled={!isClaimDay || isClaiming || myQuestIds.length === 0}
+                                    onClick={handleClaimAll}
+                                    startIcon={isClaiming ? <CircularProgress size={16} color="inherit" /> : <WorkspacePremiumIcon />}
+                                    sx={{ bgcolor: GOLD_COLOR, color: '#000', fontWeight: 900, borderRadius: 2, px: 3, '&:hover': { bgcolor: '#FFC107' } }}
+                                >
+                                    {isClaiming ? "SYNCING..." : "CLAIM ALL"}
+                                </Button>
+                            </Stack>
+                        </Box>
+                    </Stack>
+                </CardContent>
+            </Card>
+        </Grow>
+
+        <Fade in timeout={1300}>
+            <Stack spacing={4}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Typography variant="h5" fontWeight="900" sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <AssessmentIcon sx={{ color: NEON_GREEN }} /> ACTIVE MISSIONS 
+                        <Chip label={myQuestIds.length} size="small" sx={{ bgcolor: '#111', color: '#666', fontWeight: 900 }} />
                     </Typography>
-                    <Button href="/deposit" sx={{ mt: 2, color: NEON_GREEN, fontWeight: 800 }}>
-                        Initialize First Quest →
-                    </Button>
-                </Box>
-            )}
+                    <Button variant="outlined" startIcon={<AddCircleOutlineIcon />} href="/deposit" sx={{ borderRadius: 2, color: '#FFF', borderColor: '#333', fontWeight: 800 }}>NEW QUEST</Button>
+                </Stack>
+                <Stack spacing={3}>
+                    {sortedMyQuestIds.map((id, index) => (
+                        <Zoom in key={id.toString()} timeout={500 + (index * 100)}>
+                            <Box><DynamicPlanCard questId={id} /></Box>
+                        </Zoom>
+                    ))}
+                </Stack>
             </Stack>
-        </Stack>
-      </Fade>
-    </Container>
-  );
+        </Fade>
+        </Container>
+    );
 }
