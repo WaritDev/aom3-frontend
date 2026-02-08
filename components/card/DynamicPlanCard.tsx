@@ -5,11 +5,12 @@ import { formatUnits } from 'viem';
 import { useReadContract } from 'wagmi';
 import { 
     Card, CardContent, Stack, Box, Typography, 
-    LinearProgress, Button, Skeleton, Divider, Chip
+    LinearProgress, Button, Skeleton, Divider, Chip, Tooltip
 } from '@mui/material';
 import MilitaryTechIcon from '@mui/icons-material/MilitaryTech';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 
 import { useAOM3 } from '@/hooks/useAOM3';
 import { AOM3_VAULT_ADDRESS, AOM3_VAULT_ABI } from '@/constants/contracts';
@@ -44,11 +45,19 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
         type: 'deposit' | 'withdraw';
     }>({ open: false, type: 'deposit' });
 
-    const { isWindowOpen, totalDP, depositAction, withdrawAction } = useAOM3();
+    const { 
+        isWindowOpen, 
+        totalDP, 
+        depositAction, 
+        withdrawAction,
+        virtualBalance, 
+        remainingLockSeconds,
+        isWithdrawLocked 
+    } = useAOM3();
 
     useEffect(() => {
         setCurrentTime(Math.floor(Date.now() / 1000));
-        const interval = setInterval(() => setCurrentTime(Math.floor(Date.now() / 1000)), 60000);
+        const interval = setInterval(() => setCurrentTime(Math.floor(Date.now() / 1000)), 1000); 
         return () => clearInterval(interval);
     }, []);
 
@@ -61,25 +70,26 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
 
     const questData = quest as QuestData | undefined;
 
+    const lockTimeLabel = useMemo(() => {
+        if (remainingLockSeconds <= 0) return null;
+        const h = Math.floor(remainingLockSeconds / 3600);
+        const m = Math.floor((remainingLockSeconds % 3600) / 60);
+        return `${h}h ${m}m remaining`;
+    }, [remainingLockSeconds]);
+
     const coolingStatus = useMemo(() => {
         if (!questData || currentTime === 0) return { isLocked: false, label: "" };
-        
         const lastDep = Number(questData[6]);
         if (lastDep === 0) return { isLocked: false, label: "" };
-
         const lastDate = new Date(lastDep * 1000);
         const currDate = new Date(currentTime * 1000);
-
-        const hasDepositedThisMonth = 
-            lastDate.getMonth() === currDate.getMonth() && 
-            lastDate.getFullYear() === currDate.getFullYear();
+        const hasDepositedThisMonth = lastDate.getMonth() === currDate.getMonth() && lastDate.getFullYear() === currDate.getFullYear();
 
         if (hasDepositedThisMonth) {
             const nextMonth = new Date(currDate.getFullYear(), currDate.getMonth() + 1, 1);
             const daysToNext = Math.ceil((nextMonth.getTime() - currDate.getTime()) / (1000 * 60 * 60 * 24));
             return { isLocked: true, label: `NEXT DEPOSIT (${daysToNext}D)` };
         }
-
         return { isLocked: false, label: "" };
     }, [questData, currentTime]);
 
@@ -88,7 +98,6 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
     }
 
     const [, monthlyAmount, totalDeposited, currentStreak, duration, startTimestamp, , dp, active] = questData;
-
     if (!active) return null;
 
     const monthlyAmtStr = formatUnits(monthlyAmount, 6);
@@ -98,7 +107,6 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
 
     const maturityTimestamp = Number(startTimestamp) + (Number(duration) * 30 * 24 * 60 * 60);
     const isMatured = currentTime >= maturityTimestamp;
-    
     const penaltyAmount = isMatured ? 0 : totalDepNum * 0.1;
 
     const networkShare = totalDP > 0 ? (Number(dp) / Number(totalDP)) * 100 : 0;
@@ -108,14 +116,19 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
         setIsProcessing(true);
         try {
             if (modalConfig.type === 'deposit') {
-                await depositAction(Number(questId));
+                await depositAction(monthlyAmtStr, Number(duration)); 
             } else {
-                await withdrawAction(Number(questId));
+                await withdrawAction(totalDepNum);
             }
+            
             await refetch();
             onActionSuccess?.();
             setModalConfig((prev) => ({ ...prev, open: false }));
-        } catch (err) { console.error(err); } finally { setIsProcessing(false); }
+        } catch (err: unknown) { 
+            console.error("Action Error:", err); 
+        } finally { 
+            setIsProcessing(false); 
+        }
     };
 
     return (
@@ -127,9 +140,8 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                 position: 'relative',
                 overflow: 'visible',
                 transition: '0.3s',
-                '&:hover': { borderColor: NEON_GREEN }
+                '&:hover': { borderColor: NEON_GREEN, boxShadow: `0 0 20px ${NEON_GREEN}11` }
             }}>
-                {/* DP Badge */}
                 <Box sx={{ position: 'absolute', top: -12, right: 24, zIndex: 1 }}>
                     <Chip 
                         icon={<MilitaryTechIcon sx={{ color: '#000 !important' }} />}
@@ -144,13 +156,20 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                             <Stack direction="row" spacing={1} alignItems="center" mb={1}>
                                 <Typography variant="h6" fontWeight="900" color="white" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                     {isMatured ? <CheckCircleIcon sx={{ color: NEON_GREEN }} /> : null}
-                                    {isMatured ? "MISSION ACCOMPLISHED" : "QUEST PROGRESS"}
+                                    {isMatured ? "STRATEGY MATURED" : "ACTIVE YIELD STRATEGY"}
                                 </Typography>
                                 <Chip label={`Streak: ${currentStreak}`} size="small" sx={{ bgcolor: 'rgba(0, 224, 143, 0.1)', color: NEON_GREEN, fontWeight: 800 }} />
                             </Stack>
                             
+                            <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+                                <AccountBalanceWalletIcon sx={{ color: NEON_GREEN, fontSize: 18 }} />
+                                <Typography variant="body2" color={NEON_GREEN} fontWeight={700}>
+                                    Live Balance: {Number(virtualBalance).toLocaleString()} USDC2 (On Hyperliquid)
+                                </Typography>
+                            </Stack>
+
                             <Typography variant="body2" color="text.secondary" mb={2}>
-                                {totalDepNum.toLocaleString()} / {goalNum.toLocaleString()} USDC committed
+                                {totalDepNum.toLocaleString()} / {goalNum.toLocaleString()} USDC Total Commitment
                             </Typography>
 
                             <LinearProgress 
@@ -168,7 +187,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                                     <Typography variant="body2" color="white" fontWeight={700}>{networkShare.toFixed(4)}%</Typography>
                                 </Box>
                                 <Box>
-                                    <Typography variant="caption" color="text.secondary">MATURITY</Typography>
+                                    <Typography variant="caption" color="text.secondary">TARGET DATE</Typography>
                                     <Typography variant="body2" color={isMatured ? NEON_GREEN : "white"} fontWeight={700}>
                                         {new Date(maturityTimestamp * 1000).toLocaleDateString()}
                                     </Typography>
@@ -179,19 +198,30 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                         <Divider orientation="vertical" flexItem sx={{ borderColor: '#222', display: { xs: 'none', md: 'block' } }} />
 
                         <Box sx={{ flex: 1, textAlign: { xs: 'left', md: 'right' } }}>
-                            <Typography variant="caption" color="text.secondary" display="block">REDEEMABLE PRINCIPAL</Typography>
+                            <Typography variant="caption" color="text.secondary" display="block">REDEEMABLE NOW</Typography>
                             <Typography variant="h4" fontWeight="900" sx={{ color: isMatured ? NEON_GREEN : 'white' }}>
                                 ${(totalDepNum - penaltyAmount).toLocaleString()}
                             </Typography>
                             
                             <Stack direction="row" spacing={1} mt={4} justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
-                                <Button 
-                                    variant="outlined" 
-                                    onClick={() => setModalConfig({ open: true, type: 'withdraw' })}
-                                    sx={{ borderRadius: 2, borderColor: isMatured ? NEON_GREEN : '#333', color: isMatured ? NEON_GREEN : '#888', fontWeight: 700 }}
-                                >
-                                    {isMatured ? "Redeem" : "Exit"}
-                                </Button>
+                                <Tooltip title={isWithdrawLocked ? `Locked by Strategy: ${lockTimeLabel}` : "Ready to withdraw"}>
+                                    <Box>
+                                        <Button 
+                                            variant="outlined" 
+                                            disabled={isWithdrawLocked}
+                                            onClick={() => setModalConfig({ open: true, type: 'withdraw' })}
+                                            startIcon={isWithdrawLocked && <AccessTimeIcon fontSize="small" />}
+                                            sx={{ 
+                                                borderRadius: 2, 
+                                                borderColor: isWithdrawLocked ? '#222' : (isMatured ? NEON_GREEN : '#333'), 
+                                                color: isWithdrawLocked ? '#444' : (isMatured ? NEON_GREEN : '#888'), 
+                                                fontWeight: 700 
+                                            }}
+                                        >
+                                            {isWithdrawLocked ? "LOCKED" : (isMatured ? "REDEEM" : "EXIT")}
+                                        </Button>
+                                    </Box>
+                                </Tooltip>
                                 {!isMatured && (
                                     <Button 
                                         variant="contained" 
@@ -205,10 +235,15 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                                             fontWeight: 900, minWidth: 140
                                         }}
                                     >
-                                        {coolingStatus.isLocked ? coolingStatus.label : (isWindowOpen ? "DEPOSIT" : "STANDBY")}
+                                        {coolingStatus.isLocked ? coolingStatus.label : (isWindowOpen ? "DEPOSIT" : "WAIT WINDOW")}
                                     </Button>
                                 )}
                             </Stack>
+                            {isWithdrawLocked && (
+                                <Typography variant="caption" sx={{ color: NEON_ORANGE, mt: 1, display: 'block' }}>
+                                    Security Lock: {lockTimeLabel}
+                                </Typography>
+                            )}
                         </Box>
                     </Stack>
                 </CardContent>

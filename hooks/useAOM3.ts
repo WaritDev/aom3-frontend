@@ -1,226 +1,161 @@
 'use client';
 
-import { useCallback } from 'react';
-import { useReadContract, useWriteContract, useAccount, usePublicClient } from 'wagmi';
-import { parseUnits, formatUnits, type Address, type Hash } from 'viem';
+import { useCallback, useMemo } from 'react';
+import { useReadContract, useWriteContract, useAccount, usePublicClient, useWalletClient } from 'wagmi';
+import { parseSignature, type Abi, parseUnits, formatUnits, getAddress } from 'viem';
 import { 
     AOM3_VAULT_ADDRESS, 
     AOM3_VAULT_ABI, 
-    USDC_ADDRESS, 
-    USDC_ABI,
+    USDC_ADDRESS,
+    AOM3_RANKING_ADDRESS,
+    AOM3_RANKING_ABI,
     AOM3_REWARD_DISTRIBUTOR_ADDRESS,
     AOM3_REWARD_DISTRIBUTOR_ABI,
-    AOM3_RANKING_ADDRESS,
-    AOM3_RANKING_ABI
 } from '../constants/contracts';
 
-export interface UserRankingStats {
-    lifetimeDP: number;
-    currentActiveDP: number;
-    totalQuests: number;
-    totalMonths: number;
-}
-
-export interface LeaderboardEntry extends UserRankingStats {
-    address: Address;
-}
-
-type RankingContractResult = readonly [bigint, bigint, bigint, bigint];
+const HL_BRIDGE_ADDRESS = getAddress("0x08cfc1B6b2dCF36A1480b99353A354AA8AC56f89");
 
 export function useAOM3() {
     const { address } = useAccount();
     const publicClient = usePublicClient();
+    const { data: walletClient } = useWalletClient();
     const { writeContractAsync } = useWriteContract();
 
-    // --- Vault & Global Stats ---
-    const { data: nextQuestId, refetch: refetchNextId } = useReadContract({
+    // --- 1. Data Fetching (Vault & Ranking) ---
+    const { data: virtualBalanceRaw, refetch: refetchBalance } = useReadContract({
         address: AOM3_VAULT_ADDRESS,
-        abi: AOM3_VAULT_ABI,
-        functionName: 'nextQuestId',
+        abi: AOM3_VAULT_ABI as Abi,
+        functionName: 'userBalance',
+        args: address ? [address] : undefined,
     });
 
-    const { data: totalDP, refetch: refetchTotalDP } = useReadContract({
-        address: AOM3_VAULT_ADDRESS,
-        abi: AOM3_VAULT_ABI,
-        functionName: 'totalDisciplinePoints',
-    });
-
-    // --- Ranking & User Stats ---
     const { data: rankingData, refetch: refetchRanking } = useReadContract({
         address: AOM3_RANKING_ADDRESS,
-        abi: AOM3_RANKING_ABI,
+        abi: AOM3_RANKING_ABI as Abi,
         functionName: 'userStats',
         args: address ? [address] : undefined,
     });
 
-    const { data: totalParticipants } = useReadContract({
-        address: AOM3_RANKING_ADDRESS,
-        abi: AOM3_RANKING_ABI,
-        functionName: 'getTotalParticipants',
-    });
-
-    // --- Protocol Stats ---
-    const { data: isWindowOpen } = useReadContract({
+    const { data: lockData } = useReadContract({
         address: AOM3_VAULT_ADDRESS,
-        abi: AOM3_VAULT_ABI,
-        functionName: 'isInsideWindow',
+        abi: AOM3_VAULT_ABI as Abi,
+        functionName: 'getWithdrawalLockInfo',
+        args: address ? [address] : undefined,
     });
 
-    const { data: currentDayData } = useReadContract({
+    // --- 2. Dashboard Global Data ---
+    const { data: nextQuestId } = useReadContract({
         address: AOM3_VAULT_ADDRESS,
-        abi: AOM3_VAULT_ABI,
-        functionName: 'getDayOfMonth',
-        args: [BigInt(Math.floor(Date.now() / 1000))],
+        abi: AOM3_VAULT_ABI as Abi,
+        functionName: 'nextQuestId',
     });
 
-    const { data: rewardPoolBalance, refetch: refetchPool } = useReadContract({
+    // ดึงยอดเงินรวมใน Pool จาก Reward Distributor
+    const { data: rewardPoolBalance } = useReadContract({
         address: USDC_ADDRESS,
-        abi: USDC_ABI,
+        abi: [{ name: 'balanceOf', type: 'function', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }] }] as const,
         functionName: 'balanceOf',
         args: [AOM3_REWARD_DISTRIBUTOR_ADDRESS],
     });
 
-    const { data: allowance, refetch: refetchAllowance } = useReadContract({
-        address: USDC_ADDRESS,
-        abi: USDC_ABI,
-        functionName: 'allowance',
-        args: address ? [address, AOM3_VAULT_ADDRESS] : undefined,
+    // ตรวจสอบสถานะหน้าต่างการฝาก (Window)
+    const { data: isWindowOpen } = useReadContract({
+        address: AOM3_VAULT_ADDRESS,
+        abi: AOM3_VAULT_ABI as Abi,
+        functionName: 'isInsideWindow',
     });
 
-    // --- Stable Leaderboard Fetcher ---
-    const fetchLeaderboard = useCallback(async (): Promise<LeaderboardEntry[]> => {
-        if (!publicClient || !totalParticipants) return [];
-        
-        const participantsData: LeaderboardEntry[] = [];
-        const count = Number(totalParticipants);
+    // --- 3. Atomic & Reward Actions ---
+    const signPermitForBridge = useCallback(async (amount: string, deadline: bigint) => {
+        if (!address || !publicClient || !walletClient) throw new Error("Wallet not ready");
+        const freshNonce = await publicClient.readContract({
+            address: USDC_ADDRESS,
+            abi: [{ name: 'nonces', type: 'function', stateMutability: 'view', inputs: [{ name: 'owner', type: 'address' }], outputs: [{ type: 'uint256' }] }] as const,
+            functionName: 'nonces', args: [address],
+        });
+        const signature = await walletClient.signTypedData({
+            account: address,
+            domain: { name: "USDC2", version: "1", chainId: 421614, verifyingContract: USDC_ADDRESS },
+            types: {
+                Permit: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }, { name: "value", type: "uint256" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }],
+            },
+            primaryType: 'Permit',
+            message: { owner: address, spender: HL_BRIDGE_ADDRESS, value: parseUnits(amount, 6), nonce: freshNonce, deadline },
+        });
+        const sig = parseSignature(signature);
+        return { v: Number(sig.v) < 27 ? Number(sig.v) + 27 : Number(sig.v), r: sig.r, s: sig.s };
+    }, [address, publicClient, walletClient]);
 
-        for (let i = 0; i < count; i++) {
-            try {
-                const participantAddr = await publicClient.readContract({
-                    address: AOM3_RANKING_ADDRESS,
-                    abi: AOM3_RANKING_ABI,
-                    functionName: 'allParticipants',
-                    args: [BigInt(i)],
-                }) as Address;
-
-                const stats = await publicClient.readContract({
-                    address: AOM3_RANKING_ADDRESS,
-                    abi: AOM3_RANKING_ABI,
-                    functionName: 'userStats',
-                    args: [participantAddr],
-                }) as RankingContractResult;
-
-                participantsData.push({
-                    address: participantAddr,
-                    lifetimeDP: Number(stats[0]),
-                    currentActiveDP: Number(stats[1]),
-                    totalQuests: Number(stats[2]),
-                    totalMonths: Number(stats[3]),
-                });
-            } catch (err) {
-                console.error(`Error fetching participant index ${i}:`, err);
-            }
-        }
-        return participantsData.sort((a, b) => b.currentActiveDP - a.currentActiveDP);
-    }, [publicClient, totalParticipants]);
-
-    // --- Type-Safe Actions ---
-    const ensureAllowance = async (amountBigInt: bigint): Promise<void> => {
-        if (!address || !publicClient) return;
-        if (!allowance || (allowance as bigint) < amountBigInt) {
-            const hash: Hash = await writeContractAsync({
-                address: USDC_ADDRESS,
-                abi: USDC_ABI,
-                functionName: 'approve',
-                args: [AOM3_VAULT_ADDRESS, amountBigInt],
+    const createQuestAction = useCallback(async (monthlyAmount: string, durationMonths: number) => {
+        if (!publicClient || !address || !walletClient) return;
+        const deadline = BigInt(Math.floor(Date.now() / 1000) + 7200);
+        try {
+            const { v, r, s } = await signPermitForBridge(monthlyAmount, deadline);
+            const hash = await writeContractAsync({
+                address: AOM3_VAULT_ADDRESS,
+                abi: AOM3_VAULT_ABI as Abi,
+                functionName: 'createQuestWithPermit', 
+                args: [parseUnits(monthlyAmount, 6), BigInt(durationMonths), deadline, v, r, s],
             });
             await publicClient.waitForTransactionReceipt({ hash });
-            await refetchAllowance();
-        }
-    };
+            await Promise.all([refetchBalance(), refetchRanking()]);
+            return hash;
+        } catch (err: unknown) { console.error(err); throw err; }
+    }, [address, publicClient, walletClient, signPermitForBridge, writeContractAsync, refetchBalance, refetchRanking]);
 
-    const createQuestAction = async (monthlyAmount: string, durationMonths: number): Promise<Hash | undefined> => {
-        const amountBigInt = parseUnits(monthlyAmount, 6);
-        await ensureAllowance(amountBigInt);
-
-        const hash: Hash = await writeContractAsync({
-            address: AOM3_VAULT_ADDRESS,
-            abi: AOM3_VAULT_ABI,
-            functionName: 'createQuest',
-            args: [amountBigInt, BigInt(durationMonths)],
-        });
-        
-        await publicClient?.waitForTransactionReceipt({ hash });
-        await Promise.all([refetchTotalDP(), refetchNextId(), refetchRanking()]);
-        return hash;
-    };
-
-    const depositAction = async (questId: number, amountStr?: string): Promise<Hash | undefined> => {
-        if (amountStr) {
-            const amountBigInt = parseUnits(amountStr, 6);
-            await ensureAllowance(amountBigInt);
-        }
-
-        const hash: Hash = await writeContractAsync({
-            address: AOM3_VAULT_ADDRESS,
-            abi: AOM3_VAULT_ABI,
-            functionName: 'deposit',
-            args: [BigInt(questId)],
-        });
-        
-        await publicClient?.waitForTransactionReceipt({ hash });
-        await Promise.all([refetchRanking(), refetchTotalDP(), refetchAllowance()]);
-        return hash;
-    };
-
-    const withdrawAction = async (questId: number): Promise<Hash | undefined> => {
-        const hash: Hash = await writeContractAsync({
-            address: AOM3_VAULT_ADDRESS,
-            abi: AOM3_VAULT_ABI,
-            functionName: 'withdraw',
-            args: [BigInt(questId)],
-        });
-        await publicClient?.waitForTransactionReceipt({ hash });
-        await Promise.all([refetchTotalDP(), refetchPool(), refetchRanking()]);
-        return hash;
-    };
-
-    const claimRewardAction = async (questId: number): Promise<Hash | undefined> => {
-        const hash: Hash = await writeContractAsync({
+    const claimRewardAction = useCallback(async (questId: number) => {
+        const hash = await writeContractAsync({
             address: AOM3_REWARD_DISTRIBUTOR_ADDRESS,
-            abi: AOM3_REWARD_DISTRIBUTOR_ABI,
+            abi: AOM3_REWARD_DISTRIBUTOR_ABI as Abi,
             functionName: 'claimReward',
             args: [BigInt(questId)],
         });
-        await publicClient?.waitForTransactionReceipt({ hash });
-        await refetchPool();
+        if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
         return hash;
-    };
+    }, [writeContractAsync, publicClient]);
 
-    const rankingTyped = rankingData as RankingContractResult | undefined;
-    const userRanking: UserRankingStats = {
-        lifetimeDP: rankingTyped ? Number(rankingTyped[0]) : 0,
-        currentActiveDP: rankingTyped ? Number(rankingTyped[1]) : 0,
-        totalQuests: rankingTyped ? Number(rankingTyped[2]) : 0,
-        totalMonths: rankingTyped ? Number(rankingTyped[3]) : 0,
-    };
+    const withdrawAction = useCallback(async (questId: number) => {
+        const hash = await writeContractAsync({
+            address: AOM3_VAULT_ADDRESS,
+            abi: AOM3_VAULT_ABI as Abi,
+            functionName: 'withdraw',
+            args: [BigInt(questId)],
+        });
+        if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
+        await Promise.all([refetchBalance(), refetchRanking()]);
+        return hash;
+    }, [writeContractAsync, publicClient, refetchBalance, refetchRanking]);
+
+    // --- 4. Computed Stats & Return ---
+    const stats = useMemo(() => {
+        const data = rankingData as bigint[] | undefined;
+        return { 
+            totalDP: data ? Number(data[0]) : 0, 
+            activeDP: data ? Number(data[1]) : 0 
+        };
+    }, [rankingData]);
+
+    const lockInfo = useMemo(() => {
+        const data = lockData as [bigint, boolean] | undefined;
+        return { 
+            remainingLockSeconds: data ? Number(data[0]) : 0, 
+            isWithdrawLocked: data ? data[1] : false 
+        };
+    }, [lockData]);
 
     return { 
-        isWindowOpen: !!isWindowOpen,
-        currentDay: Number(currentDayData || 0),
-        totalDP: totalDP ? Number(totalDP) : 0,
-        rewardPoolBalance: rewardPoolBalance ? formatUnits(rewardPoolBalance as bigint, 6) : "0",
-        nextQuestId: nextQuestId as bigint | undefined,
-        totalParticipants: Number(totalParticipants || 0),
-        userRanking,
-        createQuestAction,
-        depositAction,
-        claimRewardAction,
+        createQuestAction, 
         withdrawAction,
-        fetchLeaderboard,
-        refetchPool,
-        refetchTotalDP,
-        refetchNextId,
-        refetchRanking
+        claimRewardAction,
+        nextQuestId: nextQuestId ? Number(nextQuestId) : 0,
+        rewardPoolBalance: rewardPoolBalance ? formatUnits(rewardPoolBalance as bigint, 6) : "0",
+        currentDay: new Date().getDate(),
+        virtualBalance: virtualBalanceRaw ? formatUnits(virtualBalanceRaw as bigint, 6) : "0",
+        totalDP: stats.totalDP,
+        activeDP: stats.activeDP,
+        remainingLockSeconds: lockInfo.remainingLockSeconds,
+        isWithdrawLocked: lockInfo.isWithdrawLocked,
+        isWindowOpen: !!isWindowOpen,
+        depositAction: createQuestAction,
     };
 }
