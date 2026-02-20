@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect} from 'react';
 import { HttpTransport } from "@nktkas/hyperliquid";
 import { vaultTransfer, approveAgent } from "@nktkas/hyperliquid/api/exchange";
 import { clearinghouseState, spotClearinghouseState, vaultDetails } from "@nktkas/hyperliquid/api/info";
@@ -73,14 +73,38 @@ export function useHL() {
     const runAutoDeposit = useCallback(async (amount: string) => {
         const agentData = getStoredAgent();
         if (!agentData || !address) return;
+        
         try {
             setIsAutoInvesting(true);
+            const targetUsd = parseFloat(amount);
+            
+            let ready = false;
+            for (let i = 0; i < 5; i++) {
+                const currentBalance = await refreshBalance();
+                if (parseFloat(currentBalance) >= targetUsd) {
+                    ready = true;
+                    break;
+                }
+                console.log(`Waiting for bridge... attempt ${i+1}`);
+                await new Promise(r => setTimeout(r, 10000));
+            }
+
+            if (!ready) throw new Error("Bridge timeout: Funds haven't arrived at HL yet");
+
             const agentWallet = privateKeyToAccount(agentData.privateKey as Hex);
-            const testAmount = Math.floor(parseFloat(amount)); 
-            await vaultTransfer({ transport, wallet: agentWallet }, { vaultAddress: VAULT_ADDRESS as Hex, isDeposit: true, usd: testAmount * 1e6 });
-            await refreshBalance();
-        } catch (e) { console.error(e); } finally { setIsAutoInvesting(false); }
-    }, [address, getStoredAgent, transport, refreshBalance]);
+            await vaultTransfer({ transport, wallet: agentWallet }, { 
+                vaultAddress: VAULT_ADDRESS as Hex, 
+                isDeposit: true, 
+                usd: Math.floor(targetUsd * 1e6) 
+            });
+
+            return true;
+        } catch (e) {
+            throw e;
+        } finally {
+            setIsAutoInvesting(false);
+        }
+    }, [address, refreshBalance, transport, getStoredAgent]);
 
     useEffect(() => {
         if (address) {
@@ -93,6 +117,6 @@ export function useHL() {
     return { 
         hlBalance, vaultEquity, vaultApr, vaultPnl,
         isAutoInvesting, hasAgent, 
-        createAndApproveAgent, runAutoDeposit, refreshBalance 
+        createAndApproveAgent, runAutoDeposit, refreshBalance
     };
 }

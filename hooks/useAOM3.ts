@@ -155,5 +155,6 @@ export function useAOM3() {
         isWithdrawLocked: lockInfo.isWithdrawLocked,
         isWindowOpen: !!isWindowOpen,
         depositAction: createQuestAction,
+        refetchBalance,
     };
 }

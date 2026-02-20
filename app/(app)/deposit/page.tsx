@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Container, Typography, Box, Card, CardContent, Stack, Fade, Grow 
@@ -9,7 +9,8 @@ import {
 import GavelIcon from '@mui/icons-material/Gavel';
 import { useAOM3 } from '@/hooks/useAOM3';
 import { useRealYield } from '@/hooks/useRealYield';
-import { useAccount, useReadContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useHL } from '@/hooks/useHL';
+import { useAccount, useReadContract } from 'wagmi';
 import { formatUnits, type Address } from 'viem';
 import { USDC_ADDRESS, USDC_ABI } from '@/constants/contracts';
 import { RewardEngineCard } from '@/components/card/RewardEngineCard';
@@ -41,11 +42,13 @@ const ASSETS: Asset[] = [
 export default function DepositPage() {
   const router = useRouter();
   const { address, isConnected } = useAccount();
-  const { createQuestAction } = useAOM3();
+  
+  const { createQuestAction, refetchBalance: refetchAOM3Balance } = useAOM3();
+  const { runAutoDeposit, refreshBalance: refreshHLBalance } = useHL();
+
   const [selectedAsset] = useState<Asset>(ASSETS[0]);
   const [monthlyAmount, setMonthlyAmount] = useState<string>('');
   const [durationValue, setDurationValue] = useState<number>(12);
-  const [txHash, setTxHash] = useState<Address | undefined>();
   const [isDeploying, setIsDeploying] = useState(false);
 
   const selectedDuration = useMemo(() => 
@@ -53,7 +56,7 @@ export default function DepositPage() {
     [durationValue]
   );
 
-  const { data: balanceData, refetch: refetchBalance, isLoading: isBalanceLoading } = useReadContract({
+  const { data: balanceData, refetch: refetchWalletBalance, isLoading: isBalanceLoading } = useReadContract({
     address: USDC_ADDRESS as Address,
     abi: USDC_ABI,
     functionName: 'balanceOf',
@@ -62,7 +65,6 @@ export default function DepositPage() {
 
   const walletBalance = balanceData ? formatUnits(balanceData as bigint, 6) : '0';
 
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash });
   const { apy: realBaseApy, loading: isYieldLoading } = useRealYield(selectedAsset.coinId);
 
   const amountNum = parseFloat(monthlyAmount) || 0;
@@ -77,28 +79,40 @@ export default function DepositPage() {
     return fv - totalPrincipal;
   }, [amountNum, realBaseApy, selectedDuration, totalPrincipal]);
 
-  const handleInitializeQuest = async () => {
-    if (!isConnected) return alert("Please connect your wallet first");
-    if (Number(monthlyAmount) > Number(walletBalance)) {
-        return alert(`Insufficient USDC. Needed: ${monthlyAmount} USDC`);
-    }
-    
-    setIsDeploying(true);
-    try {
-      const hash = await createQuestAction(monthlyAmount, selectedDuration.value);
-      setTxHash(hash);
-    } catch (error) {
-      console.error("Transaction Failed:", error);
-      setIsDeploying(false);
-    }
-  };
+  const [statusStep, setStatusStep] = useState<0 | 1 | 2 | 3>(0);
 
-  useEffect(() => {
-    if (isSuccess) {
-      refetchBalance();
-      setTimeout(() => router.push('/overview'), 3000);
-    }
-  }, [isSuccess, router, refetchBalance]);
+  const handleInitializeQuest = async () => {
+      if (!isConnected) return;
+      
+      if (amountNum < 10) return;
+      if (amountNum > Number(walletBalance)) return;
+
+      setIsDeploying(true);
+      setStatusStep(1);
+
+      try {
+          const hash = await createQuestAction(monthlyAmount, selectedDuration.value);
+          
+          if (hash) {
+              setStatusStep(2);
+              await runAutoDeposit(monthlyAmount); 
+
+              setStatusStep(3);
+              
+              await Promise.all([
+                  refetchWalletBalance(),
+                  refetchAOM3Balance(),
+                  refreshHLBalance()
+              ]);
+
+              setTimeout(() => router.push('/overview'), 1500);
+          }
+      } catch (error) {
+          console.error("Workflow Failed:", error);
+          setStatusStep(0);
+          setIsDeploying(false);
+      }
+  };
 
   return (
     <Container maxWidth="md" sx={{ py: { xs: 4, md: 8 } }}>
@@ -158,11 +172,12 @@ export default function DepositPage() {
               amountNum={amountNum}
               walletBalance={Number(walletBalance)}
               isDeploying={isDeploying}
-              isConfirming={isConfirming}
+              isConfirming={isDeploying} 
               onInitialize={handleInitializeQuest}
               coinSymbol={'BTC'}
               durationMultiplier={selectedDuration.multiplier}
               durationMonths={selectedDuration.value}
+              statusStep={statusStep}
             />
           </Box>
         </Fade>
