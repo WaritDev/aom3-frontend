@@ -139,7 +139,10 @@ const YieldStats: React.FC = () => {
   const { baseApy: aaveApy, loading: aaveLoading } = useAaveYield();
   const { apy: realApy, loading: realLoading } = useRealYield('BTC');
 
-  const formatPercent = (val: number): string => `${val.toFixed(2)}%`;
+  const formatPercent = (val: number | undefined | null): string => {
+      const safeVal = val ?? 0; 
+      return `${safeVal.toFixed(2)}%`;
+  };
 
   return (
     <Box sx={{ width: '100%', py: 8 }}>
