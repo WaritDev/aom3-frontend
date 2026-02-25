@@ -11,7 +11,6 @@ import {
 
 import MilitaryTechIcon from '@mui/icons-material/MilitaryTech';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
@@ -97,7 +96,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
 
     const { 
         isWindowOpen, totalDP, depositAction, withdrawAction,
-        virtualBalance, remainingLockSeconds, isWithdrawLocked 
+        remainingLockSeconds, isWithdrawLocked 
     } = useAOM3();
 
     const { runAutoDeposit, runAutoWithdraw, withdrawToWallet } = useHL();
@@ -264,13 +263,6 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                                     {isMatured ? "STRATEGY MATURED" : "ACTIVE SAVINGS QUEST"}
                                 </Typography>
                                 <Chip label={`Streak: ${currentStreak}`} size="small" sx={{ bgcolor: 'rgba(0, 224, 143, 0.1)', color: NEON_GREEN, fontWeight: 800, borderRadius: 1.5 }} />
-                            </Stack>
-                            
-                            <Stack direction="row" spacing={1} alignItems="center" mb={2}>
-                                <AccountBalanceWalletIcon sx={{ color: NEON_GREEN, fontSize: 18 }} />
-                                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>
-                                    Live Balance: <Box component="span" sx={{ color: 'white', fontWeight: 800 }}>{Number(virtualBalance).toLocaleString()} USDC</Box>
-                                </Typography>
                             </Stack>
 
                             <Box mb={2.5}>
