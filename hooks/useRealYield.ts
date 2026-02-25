@@ -1,48 +1,40 @@
-import { useState, useEffect } from 'react';
-import type { CalculatedYieldItem } from '@/app/api/hyperliquid-funding/route';
+import { useState, useEffect } from "react";
 
-interface RealYieldData {
-  history: CalculatedYieldItem[];
-  apy: number;
-}
-
-interface ApiResponse {
-  coin: string;
-  average30dApy: number;
-  history: CalculatedYieldItem[];
-}
-
-export const useRealYield = (coin: string = 'HYPE') => {
-  const [data, setData] = useState<RealYieldData>({ history: [], apy: 0 });
+export const useRealYield = (vaultAddress: string) => {
+  const [data, setData] = useState({ apy: 0, vaultName: '' });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchRealData = async () => {
+    if (!vaultAddress) return;
+    
+    const fetchVaultData = async () => {
       setLoading(true);
       try {
-        const res = await fetch('/api/hyperliquid-funding', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ coin }) 
+        const res = await fetch("https://api.hyperliquid-testnet.xyz/info", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "vaultDetails",
+            vaultAddress: vaultAddress,
+          }),
         });
-        
-        const json = (await res.json()) as ApiResponse;
-        
-        if (json.history) {
+
+        const json = await res.json();
+        if (json) {
           setData({
-            history: json.history,
-            apy: json.average30dApy
+            apy: (json.apr || 0) * 100,
+            vaultName: json.name
           });
         }
       } catch (e) {
-        console.error(e);
+        console.error("Vault API Error:", e);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchRealData();
-  }, [coin]);
+    fetchVaultData();
+  }, [vaultAddress]);
 
   return { ...data, loading };
 };

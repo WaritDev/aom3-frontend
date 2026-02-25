@@ -18,6 +18,7 @@ import BoltIcon from '@mui/icons-material/Bolt';
 
 import { useAaveYield } from '@/hooks/useAaveYield';
 import { useRealYield } from '@/hooks/useRealYield';
+import { getAddress, Hex } from 'viem';
 
 const NEON_GREEN = '#00E08F';
 const CARD_BG = '#0A0A0A';
@@ -61,7 +62,6 @@ const StatCard: React.FC<StatCardProps> = ({
       }
     }}
   >
-    {/* Hero Pulse Effect (เฉพาะ Hero Card) */}
     {isHero && (
         <Box 
             sx={{ 
@@ -135,9 +135,15 @@ const StatCard: React.FC<StatCardProps> = ({
   </Card>
 );
 
+const rawVaultAddress = process.env.NEXT_PUBLIC_HL_VAULT_ADDRESS;
+if (!rawVaultAddress) {
+    throw new Error("NEXT_PUBLIC_HL_VAULT_ADDRESS is missing in your .env file");
+}
+export const VAULT_ADDRESS = getAddress(rawVaultAddress as Hex);
+
 const YieldStats: React.FC = () => {
   const { baseApy: aaveApy, loading: aaveLoading } = useAaveYield();
-  const { apy: realApy, loading: realLoading } = useRealYield('BTC');
+  const { apy: realApy, vaultName, loading: realLoading } = useRealYield(VAULT_ADDRESS);
 
   const formatPercent = (val: number | undefined | null): string => {
       const safeVal = val ?? 0; 
@@ -152,7 +158,7 @@ const YieldStats: React.FC = () => {
                 Tactical <Box component="span" sx={{ color: NEON_GREEN }}>Yield Intelligence</Box>
             </Typography>
             <Typography variant="body1" sx={{ color: '#666', fontWeight: 500 }}>
-                Delta-Neutral execution. Sustainable returns. No market risk.
+                {realLoading ? "Analyzing Strategy..." : `Live Execution: ${vaultName} Protocol`}
             </Typography>
         </Box>
       </Fade>
@@ -178,8 +184,8 @@ const YieldStats: React.FC = () => {
             value={realLoading ? "SYNCING..." : formatPercent(realApy)} 
             isHero
             loading={realLoading}
-            bonus="+ Prize Pool Multiplier"
-            chipLabel="Delta Neutral Engine"
+            bonus={`+ Reward Pool & DP Multiplier`}
+            chipLabel={vaultName || "Delta Neutral Engine"}
             icon={<AutoGraphIcon sx={{ fontSize: 32 }} />}
           />
         </Box>
