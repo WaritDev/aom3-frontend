@@ -183,11 +183,11 @@ export default function RankingPage() {
     const formattedLeaderboard = useMemo(() => {
         return leaderboard.map((user, index) => ({
             rank: index + 1,
-            name: user.address.toLowerCase() === address?.toLowerCase() ? 'You' : shortenAddress(user.address),
-            score: user.currentActiveDP,
-            streak: user.totalMonths,
-            yield: calculateYield(user.currentActiveDP),
-            address: user.address
+            name: user.userAddress.toLowerCase() === address?.toLowerCase() ? 'You' : shortenAddress(user.userAddress),
+            score: Number(user.currentActiveDP),
+            streak: Number(user.totalMonths),
+            yield: calculateYield(Number(user.currentActiveDP)),
+            address: user.userAddress
         }));
     }, [leaderboard, address, calculateYield]);
 
@@ -197,14 +197,16 @@ export default function RankingPage() {
         formattedLeaderboard[2] || null,
     ], [formattedLeaderboard]);
 
+
     const myRankItem = useMemo(() => {
-        const index = leaderboard.findIndex(u => u.address.toLowerCase() === address?.toLowerCase());
+        const index = leaderboard.findIndex(u => u.userAddress.toLowerCase() === address?.toLowerCase());
+        
         return {
             rank: index !== -1 ? index + 1 : '-',
             name: 'You',
-            score: userRanking.currentActiveDP,
-            streak: userRanking.totalMonths,
-            yield: calculateYield(userRanking.currentActiveDP),
+            score: userRanking.currentActiveDP || 0,
+            streak: userRanking.totalMonths || 0,
+            yield: calculateYield(userRanking.currentActiveDP || 0),
         };
     }, [leaderboard, address, userRanking, calculateYield]);
 
