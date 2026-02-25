@@ -1,7 +1,6 @@
-export const AOM3_STRATEGY_ADDRESS = "0x8a32F4e0Ab18ba2504474163A7CFE9A2Ef16f679" as const;
-export const AOM3_RANKING_ADDRESS = "0xD09e17C1Aed24F50d5Ae4b164cb7fb1a5769C393" as const;
-export const AOM3_VAULT_ADDRESS = "0x04CD0791244c1b40b6AA6cca1831a23152974e0a" as const;
-export const AOM3_REWARD_DISTRIBUTOR_ADDRESS = "0xC7BBB5689765De9a78368841AE6bc3c335F92BB0" as const;
+export const AOM3_RANKING_ADDRESS = "0xd28926021b85971e6d72d0A282Bc9c22f83F61Ce" as const;
+export const AOM3_VAULT_ADDRESS = "0x2183860Db97436B5feb8cac02F55Bd215716192C" as const;
+export const AOM3_REWARD_DISTRIBUTOR_ADDRESS = "0x7Ca7bA162B1fEE3bE2Ba5eaA0Aa51fAdD34815e4" as const;
 export const USDC_ADDRESS = "0x1baAbB04529D43a73232B713C0FE471f7c7334d5" as const;
 
 export const AOM3_VAULT_ABI = [
@@ -257,30 +256,6 @@ export const AOM3_VAULT_ABI = [
       "type": "function"
     },
     {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "_user",
-          "type": "address"
-        }
-      ],
-      "name": "getWithdrawalLockInfo",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "remainingSeconds",
-          "type": "uint256"
-        },
-        {
-          "internalType": "bool",
-          "name": "isLocked",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
       "inputs": [],
       "name": "isInsideWindow",
       "outputs": [
@@ -394,6 +369,32 @@ export const AOM3_VAULT_ABI = [
     {
       "inputs": [],
       "name": "renounceOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "rewardDistributor",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_distributor",
+          "type": "address"
+        }
+      ],
+      "name": "setRewardDistributor",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -767,325 +768,7 @@ export const AOM3_REWARD_DISTRIBUTOR_ABI = [
 
 export const AOM3_RANKING_ABI = [
 {
-    "inputs": [],
-    "stateMutability": "nonpayable",
-    "type": "constructor"
-},
-{
-    "inputs": [
-    {
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
-    }
-    ],
-    "name": "OwnableInvalidOwner",
-    "type": "error"
-},
-{
-    "inputs": [
-    {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-    }
-    ],
-    "name": "OwnableUnauthorizedAccount",
-    "type": "error"
-},
-{
-    "anonymous": false,
-    "inputs": [
-    {
-        "indexed": true,
-        "internalType": "address",
-        "name": "previousOwner",
-        "type": "address"
-    },
-    {
-        "indexed": true,
-        "internalType": "address",
-        "name": "newOwner",
-        "type": "address"
-    }
-    ],
-    "name": "OwnershipTransferred",
-    "type": "event"
-},
-{
-    "anonymous": false,
-    "inputs": [
-    {
-        "indexed": true,
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-    },
-    {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "currentDP",
-        "type": "uint256"
-    },
-    {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "lifetimeDP",
-        "type": "uint256"
-    },
-    {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "totalMonths",
-        "type": "uint256"
-    }
-    ],
-    "name": "RankUpdated",
-    "type": "event"
-},
-{
-    "anonymous": false,
-    "inputs": [
-    {
-        "indexed": true,
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-    },
-    {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amountReduced",
-        "type": "uint256"
-    },
-    {
-        "indexed": false,
-        "internalType": "string",
-        "name": "reason",
-        "type": "string"
-    }
-    ],
-    "name": "StatsDecreased",
-    "type": "event"
-},
-{
-    "inputs": [
-    {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-    }
-    ],
-    "name": "allParticipants",
-    "outputs": [
-    {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-    }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-},
-{
-    "inputs": [],
-    "name": "getTotalParticipants",
-    "outputs": [
-    {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-    }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-},
-{
-    "inputs": [
-    {
-        "internalType": "address",
-        "name": "_user",
-        "type": "address"
-    }
-    ],
-    "name": "getUserFullStats",
-    "outputs": [
-    {
-        "components": [
-        {
-            "internalType": "uint256",
-            "name": "lifetimeDP",
-            "type": "uint256"
-        },
-        {
-            "internalType": "uint256",
-            "name": "currentActiveDP",
-            "type": "uint256"
-        },
-        {
-            "internalType": "uint256",
-            "name": "totalQuests",
-            "type": "uint256"
-        },
-        {
-            "internalType": "uint256",
-            "name": "totalMonths",
-            "type": "uint256"
-        }
-        ],
-        "internalType": "struct AOM3Ranking.UserStats",
-        "name": "",
-        "type": "tuple"
-    }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-},
-{
-    "inputs": [],
-    "name": "owner",
-    "outputs": [
-    {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-    }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-},
-{
-    "inputs": [
-    {
-        "internalType": "address",
-        "name": "_user",
-        "type": "address"
-    },
-    {
-        "internalType": "uint256",
-        "name": "_dp",
-        "type": "uint256"
-    }
-    ],
-    "name": "reduceActiveDP",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-},
-{
-    "inputs": [
-    {
-        "internalType": "address",
-        "name": "_user",
-        "type": "address"
-    },
-    {
-        "internalType": "uint256",
-        "name": "_dp",
-        "type": "uint256"
-    },
-    {
-        "internalType": "uint256",
-        "name": "_months",
-        "type": "uint256"
-    }
-    ],
-    "name": "registerNewQuest",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-},
-{
-    "inputs": [],
-    "name": "renounceOwnership",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-},
-{
-    "inputs": [
-    {
-        "internalType": "address",
-        "name": "_vault",
-        "type": "address"
-    }
-    ],
-    "name": "setVault",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-},
-{
-    "inputs": [
-    {
-        "internalType": "address",
-        "name": "newOwner",
-        "type": "address"
-    }
-    ],
-    "name": "transferOwnership",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-},
-{
-    "inputs": [
-    {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-    }
-    ],
-    "name": "userStats",
-    "outputs": [
-    {
-        "internalType": "uint256",
-        "name": "lifetimeDP",
-        "type": "uint256"
-    },
-    {
-        "internalType": "uint256",
-        "name": "currentActiveDP",
-        "type": "uint256"
-    },
-    {
-        "internalType": "uint256",
-        "name": "totalQuests",
-        "type": "uint256"
-    },
-    {
-        "internalType": "uint256",
-        "name": "totalMonths",
-        "type": "uint256"
-    }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-},
-{
-    "inputs": [],
-    "name": "vault",
-    "outputs": [
-    {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-    }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-}
-] as const;
-
-export const AOM3_STRATEGY_ABI = [
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "_usdc2",
-          "type": "address"
-        }
-      ],
+      "inputs": [],
       "stateMutability": "nonpayable",
       "type": "constructor"
     },
@@ -1117,50 +800,6 @@ export const AOM3_STRATEGY_ABI = [
         {
           "indexed": true,
           "internalType": "address",
-          "name": "user",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "Deposit",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "user",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "timestamp",
-          "type": "uint256"
-        }
-      ],
-      "name": "DepositSynced",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
           "name": "previousOwner",
           "type": "address"
         },
@@ -1178,13 +817,31 @@ export const AOM3_STRATEGY_ABI = [
       "anonymous": false,
       "inputs": [
         {
+          "indexed": true,
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
           "indexed": false,
           "internalType": "uint256",
-          "name": "totalProfit",
+          "name": "currentDP",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "lifetimeDP",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "totalMonths",
           "type": "uint256"
         }
       ],
-      "name": "PnLReported",
+      "name": "RankUpdated",
       "type": "event"
     },
     {
@@ -1199,41 +856,28 @@ export const AOM3_STRATEGY_ABI = [
         {
           "indexed": false,
           "internalType": "uint256",
-          "name": "total",
+          "name": "amountReduced",
           "type": "uint256"
         },
         {
           "indexed": false,
-          "internalType": "uint256",
-          "name": "fee",
-          "type": "uint256"
+          "internalType": "string",
+          "name": "reason",
+          "type": "string"
         }
       ],
-      "name": "WithdrawalRequested",
+      "name": "StatsDecreased",
       "type": "event"
     },
     {
-      "anonymous": false,
       "inputs": [
         {
-          "indexed": true,
-          "internalType": "address",
-          "name": "user",
-          "type": "address"
-        },
-        {
-          "indexed": false,
           "internalType": "uint256",
-          "name": "amount",
+          "name": "",
           "type": "uint256"
         }
       ],
-      "name": "WithdrawalSynced",
-      "type": "event"
-    },
-    {
-      "inputs": [],
-      "name": "HL_BRIDGE",
+      "name": "allParticipants",
       "outputs": [
         {
           "internalType": "address",
@@ -1246,12 +890,39 @@ export const AOM3_STRATEGY_ABI = [
     },
     {
       "inputs": [],
-      "name": "LOCK_PERIOD",
+      "name": "getAllLeaderboard",
       "outputs": [
         {
-          "internalType": "uint256",
+          "components": [
+            {
+              "internalType": "address",
+              "name": "userAddress",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "lifetimeDP",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "currentActiveDP",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "totalQuests",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "totalMonths",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct AOM3Ranking.LeaderboardEntry[]",
           "name": "",
-          "type": "uint256"
+          "type": "tuple[]"
         }
       ],
       "stateMutability": "view",
@@ -1259,70 +930,7 @@ export const AOM3_STRATEGY_ABI = [
     },
     {
       "inputs": [],
-      "name": "botAddress",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "bridgeToHyperliquid",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "deposit",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "token",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "emergencyWithdraw",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "user",
-          "type": "address"
-        }
-      ],
-      "name": "getRemainingLockTime",
+      "name": "getTotalParticipants",
       "outputs": [
         {
           "internalType": "uint256",
@@ -1337,16 +945,38 @@ export const AOM3_STRATEGY_ABI = [
       "inputs": [
         {
           "internalType": "address",
-          "name": "",
+          "name": "_user",
           "type": "address"
         }
       ],
-      "name": "lastDepositTime",
+      "name": "getUserFullStats",
       "outputs": [
         {
-          "internalType": "uint256",
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "lifetimeDP",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "currentActiveDP",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "totalQuests",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "totalMonths",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct AOM3Ranking.UserStats",
           "name": "",
-          "type": "uint256"
+          "type": "tuple"
         }
       ],
       "stateMutability": "view",
@@ -1368,22 +998,17 @@ export const AOM3_STRATEGY_ABI = [
     {
       "inputs": [
         {
-          "internalType": "uint256",
-          "name": "totalAmount",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "feeAmount",
-          "type": "uint256"
-        },
-        {
           "internalType": "address",
-          "name": "to",
+          "name": "_user",
           "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_dp",
+          "type": "uint256"
         }
       ],
-      "name": "redeemWithFee",
+      "name": "reduceActiveDP",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -1392,21 +1017,21 @@ export const AOM3_STRATEGY_ABI = [
       "inputs": [
         {
           "internalType": "address",
-          "name": "user",
+          "name": "_user",
           "type": "address"
         },
         {
           "internalType": "uint256",
-          "name": "totalAmount",
+          "name": "_dp",
           "type": "uint256"
         },
         {
           "internalType": "uint256",
-          "name": "feeAmount",
+          "name": "_months",
           "type": "uint256"
         }
       ],
-      "name": "redeemWithFeeSync",
+      "name": "registerNewQuest",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -1414,58 +1039,6 @@ export const AOM3_STRATEGY_ABI = [
     {
       "inputs": [],
       "name": "renounceOwnership",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "_profitAmount",
-          "type": "uint256"
-        }
-      ],
-      "name": "reportPnL",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "rewardDistributor",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "_bot",
-          "type": "address"
-        }
-      ],
-      "name": "setBotAddress",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "_distributor",
-          "type": "address"
-        }
-      ],
-      "name": "setRewardDistributor",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -1487,37 +1060,6 @@ export const AOM3_STRATEGY_ABI = [
       "inputs": [
         {
           "internalType": "address",
-          "name": "user",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "syncDeposit",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "totalActiveCapital",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
           "name": "newOwner",
           "type": "address"
         }
@@ -1528,19 +1070,6 @@ export const AOM3_STRATEGY_ABI = [
       "type": "function"
     },
     {
-      "inputs": [],
-      "name": "usdc2",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
       "inputs": [
         {
           "internalType": "address",
@@ -1548,11 +1077,26 @@ export const AOM3_STRATEGY_ABI = [
           "type": "address"
         }
       ],
-      "name": "userBalance",
+      "name": "userStats",
       "outputs": [
         {
           "internalType": "uint256",
-          "name": "",
+          "name": "lifetimeDP",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "currentActiveDP",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "totalQuests",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "totalMonths",
           "type": "uint256"
         }
       ],
@@ -1571,34 +1115,5 @@ export const AOM3_STRATEGY_ABI = [
       ],
       "stateMutability": "view",
       "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "withdrawalRequests",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "total",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "fee",
-          "type": "uint256"
-        },
-        {
-          "internalType": "enum AOM3Strategy.Status",
-          "name": "status",
-          "type": "uint8"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
     }
-  ] as const;
+] as const;

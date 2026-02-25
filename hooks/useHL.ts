@@ -2,10 +2,10 @@
 
 import { useState, useCallback, useMemo, useEffect} from 'react';
 import { HttpTransport } from "@nktkas/hyperliquid";
-import { vaultTransfer, approveAgent } from "@nktkas/hyperliquid/api/exchange";
+import { vaultTransfer, withdraw3 } from "@nktkas/hyperliquid/api/exchange";
 import { clearinghouseState, spotClearinghouseState, vaultDetails } from "@nktkas/hyperliquid/api/info";
 import { useAccount, useWalletClient } from 'wagmi';
-import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
+import { privateKeyToAccount } from 'viem/accounts';
 import { getAddress, type Hex } from 'viem';
 
 const rawVaultAddress = process.env.NEXT_PUBLIC_HL_VAULT_ADDRESS;
@@ -59,17 +59,6 @@ export function useHL() {
 
     const hasAgent = !!getStoredAgent();
 
-    const createAndApproveAgent = useCallback(async () => {
-        if (!walletClient || !address) return;
-        try {
-            const pKey = generatePrivateKey();
-            const agentAccount = privateKeyToAccount(pKey);
-            await approveAgent({ transport, wallet: walletClient }, { agentAddress: agentAccount.address, agentName: "AOM3-Automator" });
-            localStorage.setItem(`hl_agent_${address.toLowerCase()}`, JSON.stringify({ address: agentAccount.address, privateKey: pKey }));
-            window.location.reload();
-        } catch (e) { console.error(e); }
-    }, [address, walletClient, transport]);
-
     const runAutoDeposit = useCallback(async (amount: string) => {
         const agentData = getStoredAgent();
         if (!agentData || !address) return;
@@ -106,6 +95,54 @@ export function useHL() {
         }
     }, [address, refreshBalance, transport, getStoredAgent]);
 
+    const runAutoWithdraw = useCallback(async (amount: string) => {
+        const agentData = getStoredAgent();
+        if (!agentData || !address) return;
+        
+        try {
+            setIsAutoInvesting(true);
+            const targetUsd = parseFloat(amount);
+            const agentWallet = privateKeyToAccount(agentData.privateKey as Hex);
+
+            await vaultTransfer({ transport, wallet: agentWallet }, { 
+                vaultAddress: VAULT_ADDRESS as Hex, 
+                isDeposit: false, 
+                usd: Math.floor(targetUsd * 1e6) 
+            });
+
+            await refreshBalance();
+            return true;
+        } catch (e) {
+            console.error("HL Withdraw Error:", e);
+            throw e;
+        } finally {
+            setIsAutoInvesting(false);
+        }
+    }, [address, refreshBalance, transport, getStoredAgent]);
+
+    const withdrawToWallet = useCallback(async (amount: string) => {
+        if (!walletClient || !address) throw new Error("Wallet not connected");
+        
+        try {
+            setIsAutoInvesting(true);
+            await withdraw3(
+                { transport, wallet: walletClient },
+                {
+                    destination: address,
+                    amount: amount,
+                }
+            );
+
+            await refreshBalance();
+            return true;
+        } catch (e) {
+            console.error("Bridge back error:", e);
+            throw e;
+        } finally {
+            setIsAutoInvesting(false);
+        }
+    }, [address, walletClient, transport, refreshBalance]);
+
     useEffect(() => {
         if (address) {
             refreshBalance();
@@ -116,7 +153,6 @@ export function useHL() {
 
     return { 
         hlBalance, vaultEquity, vaultApr, vaultPnl,
-        isAutoInvesting, hasAgent, 
-        createAndApproveAgent, runAutoDeposit, refreshBalance
+        isAutoInvesting, hasAgent, runAutoDeposit, runAutoWithdraw, withdrawToWallet, refreshBalance
     };
 }
