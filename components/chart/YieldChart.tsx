@@ -43,12 +43,12 @@ export default function VaultYieldChart({ coin, onApyLoad }: VaultYieldChartProp
         const fetchData = async () => {
             setLoading(true);
             try {
-                const res = await fetch('/api/hyperliquid-funding', {
+                const res = await fetch('/api/hyperliquid-apy', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         vaultAddress: VAULT_ADDRESS,
-                        coin: coin // ส่งชื่อเหรียญไปที่ API (ถ้าต้องการ)
+                        coin: coin
                     }) 
                 });
                 
