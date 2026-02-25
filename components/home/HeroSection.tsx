@@ -10,9 +10,9 @@ import {
   Fade, 
   Divider,
   SxProps,
-  Theme
+  Theme,
+  useTheme
 } from '@mui/material';
-import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import BoltIcon from '@mui/icons-material/Bolt';
 import Link from 'next/link';
 
@@ -24,21 +24,29 @@ interface StatItemProps {
   subValue: string;
 }
 
-const StatItem = ({ label, value, subValue }: StatItemProps) => (
-  <Box sx={{ textAlign: 'center' }}>
-    <Typography variant="h5" fontWeight="900" sx={{ color: '#FFF', lineHeight: 1 }}>
-      {value}
-    </Typography>
-    <Typography variant="caption" sx={{ color: NEON_GREEN, fontWeight: 800, letterSpacing: 1, display: 'block', mt: 0.5 }}>
-      {label}
-    </Typography>
-    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.65rem' }}>
-      {subValue}
-    </Typography>
-  </Box>
-);
+const StatItem = ({ label, value, subValue }: StatItemProps) => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+
+  return (
+    <Box sx={{ textAlign: 'center' }}>
+      <Typography variant="h5" fontWeight="900" sx={{ color: 'text.primary', lineHeight: 1 }}>
+        {value}
+      </Typography>
+      <Typography variant="caption" sx={{ color: NEON_GREEN, fontWeight: 800, letterSpacing: 1, display: 'block', mt: 0.5 }}>
+        {label}
+      </Typography>
+      <Typography variant="caption" sx={{ color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.4)', fontSize: '0.65rem' }}>
+        {subValue}
+      </Typography>
+    </Box>
+  );
+};
 
 const HeroSection: React.FC = () => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+
   const launchButtonSx: SxProps<Theme> = {
     px: 6,
     py: 2,
@@ -65,19 +73,22 @@ const HeroSection: React.FC = () => {
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
-        bgcolor: '#050505',
-        background: `
-          radial-gradient(circle at 50% 20%, ${NEON_GREEN}15 0%, rgba(5, 5, 5, 0) 60%),
-          linear-gradient(to bottom, #050505, #0a0a0a)
-        `,
+        bgcolor: 'background.default',
+        background: isDark 
+            ? `radial-gradient(circle at 50% 20%, ${NEON_GREEN}15 0%, rgba(5, 5, 5, 0) 60%),
+              linear-gradient(to bottom, #050505, #0a0a0a)`
+            : `radial-gradient(circle at 50% 20%, ${NEON_GREEN}10 0%, rgba(255, 255, 255, 0) 60%),
+              linear-gradient(to bottom, #F5F5F5, #FFFFFF)`,
+        transition: 'all 0.4s ease'
       }}
     >
       <Box 
         sx={{ 
           position: 'absolute', 
           inset: 0, 
-          opacity: 0.04, 
-          backgroundImage: `linear-gradient(${NEON_GREEN} 1px, transparent 1px), linear-gradient(90deg, ${NEON_GREEN} 1px, transparent 1px)`,
+          opacity: isDark ? 0.04 : 0.08, 
+          backgroundImage: `linear-gradient(${isDark ? NEON_GREEN : '#000'} 1px, transparent 1px), 
+                            linear-gradient(90deg, ${isDark ? NEON_GREEN : '#000'} 1px, transparent 1px)`,
           backgroundSize: '40px 40px',
           pointerEvents: 'none'
         }} 
@@ -89,7 +100,7 @@ const HeroSection: React.FC = () => {
             
             <Box 
               sx={{ 
-                bgcolor: `${NEON_GREEN}08`, 
+                bgcolor: isDark ? `${NEON_GREEN}08` : `${NEON_GREEN}15`, 
                 px: 2.5, 
                 py: 0.75, 
                 borderRadius: '50px', 
@@ -101,8 +112,8 @@ const HeroSection: React.FC = () => {
               }}
             >
               <BoltIcon sx={{ color: NEON_GREEN, fontSize: 18 }} />
-              <Typography variant="caption" sx={{ color: NEON_GREEN, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase' }}>
-                System Ready: Delta-Neutral Engine
+              <Typography variant="caption" sx={{ color: isDark ? NEON_GREEN : '#008F5D', fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase' }}>
+                AOM3: The Discipline-Driven Yield Protocol
               </Typography>
             </Box>
 
@@ -114,31 +125,33 @@ const HeroSection: React.FC = () => {
                   fontWeight: 900,
                   lineHeight: 0.9,
                   letterSpacing: '-4px',
-                  background: `linear-gradient(180deg, #FFF 40%, ${NEON_GREEN} 160%)`,
+                  background: isDark 
+                    ? `linear-gradient(180deg, #FFF 40%, ${NEON_GREEN} 160%)`
+                    : `linear-gradient(180deg, #2b2b2b 40%, ${NEON_GREEN} 160%)`,
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   textTransform: 'uppercase',
                   mb: 1
                 }}
               >
-                Yield beyond <br /> the <Box component="span" sx={{ textShadow: `0 0 50px ${NEON_GREEN}60` }}>(h)edge</Box>
+                DISCIPLINE <br /> <Box component="span" sx={{ textShadow: isDark ? `0 0 50px ${NEON_GREEN}60` : 'none' }}>AS A</Box> MAKER
               </Typography>
             </Box>
 
             <Typography 
               variant="h5" 
               sx={{ 
-                maxWidth: '650px', 
+                maxWidth: '750px', 
                 mx: 'auto', 
                 fontSize: { xs: '1.05rem', md: '1.25rem' }, 
                 lineHeight: 1.6,
-                color: 'rgba(255,255,255,0.6)',
+                color: 'text.secondary',
                 fontWeight: 500,
                 letterSpacing: 0.5
               }}
             >
-              Master the art of <Box component="span" color="#FFF" fontWeight="800">Sustainable Compounding</Box>. 
-              Institutional-grade strategies for the modern strategist.
+              Commit to the quest. Stack Discipline Points (DP) for <Box component="span" color="text.primary" fontWeight="800">exclusive bonuses</Box>. 
+              Your assets generate real-yield through <Box component="span" color={NEON_GREEN} fontWeight="800">Hyperliquid’s Multi-Vault HLP engine</Box>.
             </Typography>
 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5} pt={2}>
@@ -146,11 +159,9 @@ const HeroSection: React.FC = () => {
                 component={Link}
                 href="/overview"
                 variant="contained" 
-                size="large" 
-                endIcon={<RocketLaunchIcon />}
                 sx={launchButtonSx}
               >
-                Launch Quest
+                Start Your Discipline
               </Button>
               
               <Button 
@@ -161,8 +172,8 @@ const HeroSection: React.FC = () => {
                 sx={{ 
                   px: 5, 
                   borderRadius: '12px',
-                  borderColor: 'rgba(255,255,255,0.15)',
-                  color: '#FFF',
+                  borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)',
+                  color: 'text.primary',
                   fontWeight: 800,
                   borderWidth: '2px',
                   '&:hover': {
@@ -172,7 +183,7 @@ const HeroSection: React.FC = () => {
                   }
                 }}
               >
-                Protocol Docs
+                Reward Mechanics
               </Button>
             </Stack>
 
@@ -180,10 +191,11 @@ const HeroSection: React.FC = () => {
               direction="row" 
               spacing={{ xs: 3, md: 6 }} 
               sx={{ pt: 6 }} 
-              divider={<Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.1)', height: '40px', alignSelf: 'center' }} />}
+              divider={<Divider orientation="vertical" flexItem sx={{ borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', height: '40px', alignSelf: 'center' }} />}
             >
-              <StatItem label="MAX STREAK" value="1.5x" subValue="MULTIPLIER" />
-              <StatItem label="RISK MODEL" value="DELTA-0" subValue="NEUTRAL" />
+              <StatItem label="VAULT SOURCE" value="HLP MM" subValue="7+ STRATEGIES" />
+              <StatItem label="STREAK BONUS" value="UP TO 1.5x" subValue="YIELD MULTIPLIER" />
+              <StatItem label="REWARD POOL" value="USDC" subValue="PENALTY-DRIVEN" />
             </Stack>
 
           </Stack>

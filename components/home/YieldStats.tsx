@@ -9,7 +9,8 @@ import {
   Typography, 
   Chip, 
   CircularProgress,
-  Fade
+  Fade,
+  useTheme
 } from '@mui/material';
 import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
@@ -21,8 +22,6 @@ import { useRealYield } from '@/hooks/useRealYield';
 import { getAddress, Hex } from 'viem';
 
 const NEON_GREEN = '#00E08F';
-const CARD_BG = '#0A0A0A';
-const CARD_BORDER = '#1E1E1E';
 
 interface StatCardProps {
   label: string;
@@ -34,7 +33,6 @@ interface StatCardProps {
   bonus?: string;
 }
 
-
 const StatCard: React.FC<StatCardProps> = ({ 
   label, 
   value, 
@@ -43,97 +41,106 @@ const StatCard: React.FC<StatCardProps> = ({
   loading, 
   chipLabel, 
   bonus 
-}) => (
-  <Card 
-    sx={{ 
-      height: '100%',
-      bgcolor: CARD_BG, 
-      color: '#FFF',
-      border: `1px solid ${isHero ? NEON_GREEN : CARD_BORDER}`,
-      position: 'relative',
-      overflow: 'visible',
-      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-      borderRadius: 4,
-      boxShadow: isHero ? `0 0 25px ${NEON_GREEN}15` : 'none',
-      '&:hover': {
-        transform: 'translateY(-6px)',
-        borderColor: isHero ? NEON_GREEN : '#444',
-        boxShadow: isHero ? `0 10px 40px ${NEON_GREEN}30` : `0 10px 20px rgba(0,0,0,0.5)`,
-      }
-    }}
-  >
-    {isHero && (
-        <Box 
-            sx={{ 
-                position: 'absolute', inset: -1, borderRadius: 4, 
-                border: `1px solid ${NEON_GREEN}`, opacity: 0.5,
-                animation: 'pulse-border 2s infinite ease-in-out',
-                pointerEvents: 'none'
-            }} 
-        />
-    )}
+}) => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
 
-    <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={3}>
-        <Typography variant="overline" sx={{ color: isHero ? NEON_GREEN : '#666', fontWeight: 900, letterSpacing: 2 }}>
-          {label}
-        </Typography>
-        {icon && <Box sx={{ color: isHero ? NEON_GREEN : '#444', display: 'flex' }}>{icon}</Box>}
-      </Stack>
+  return (
+    <Card 
+      sx={{ 
+        height: '100%',
+        bgcolor: isDark ? 'background.paper' : '#FFFFFF', 
+        color: 'text.primary',
+        border: `1px solid ${isHero ? NEON_GREEN : isDark ? '#1E1E1E' : '#EEE'}`,
+        position: 'relative',
+        overflow: 'visible',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        borderRadius: 4,
+        boxShadow: isHero 
+            ? `0 0 25px ${NEON_GREEN}${isDark ? '15' : '30'}` 
+            : isDark ? 'none' : '0 4px 20px rgba(0,0,0,0.05)',
+        '&:hover': {
+          transform: 'translateY(-6px)',
+          borderColor: isHero ? NEON_GREEN : isDark ? '#444' : '#CCC',
+          boxShadow: isHero 
+            ? `0 10px 40px ${NEON_GREEN}${isDark ? '30' : '50'}` 
+            : isDark ? `0 10px 20px rgba(0,0,0,0.5)` : `0 10px 30px rgba(0,0,0,0.1)`,
+        }
+      }}
+    >
+      {isHero && (
+          <Box 
+              sx={{ 
+                  position: 'absolute', inset: -1, borderRadius: 4, 
+                  border: `1px solid ${NEON_GREEN}`, opacity: isDark ? 0.5 : 0.3,
+                  animation: 'pulse-border 2s infinite ease-in-out',
+                  pointerEvents: 'none'
+              }} 
+          />
+      )}
 
-      <Box sx={{ flexGrow: 1 }}>
-        {loading ? (
-            <CircularProgress size={28} sx={{ color: NEON_GREEN }} />
-        ) : (
-          <Box>
-            <Typography variant="h3" sx={{ fontWeight: 900, lineHeight: 1, letterSpacing: '-1px', mb: 1.5 }}>
-                {value}
-            </Typography>
-            
-            {bonus && (
-                <Stack direction="row" alignItems="center" spacing={1}>
-                    <StarsIcon sx={{ fontSize: 18, color: NEON_GREEN }} />
-                    <Typography 
-                        variant="caption" 
-                        sx={{ fontWeight: 800, color: NEON_GREEN, letterSpacing: 0.5, textTransform: 'uppercase' }}
-                    >
-                        {bonus}
-                    </Typography>
-                </Stack>
-            )}
+      <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={3}>
+          <Typography variant="overline" sx={{ color: isHero ? NEON_GREEN : 'text.secondary', fontWeight: 900, letterSpacing: 2 }}>
+            {label}
+          </Typography>
+          {icon && <Box sx={{ color: isHero ? NEON_GREEN : 'text.disabled', display: 'flex' }}>{icon}</Box>}
+        </Stack>
+
+        <Box sx={{ flexGrow: 1 }}>
+          {loading ? (
+              <CircularProgress size={28} sx={{ color: NEON_GREEN }} />
+          ) : (
+            <Box>
+              <Typography variant="h3" sx={{ fontWeight: 900, lineHeight: 1, letterSpacing: '-1px', mb: 1.5 }}>
+                  {value}
+              </Typography>
+              
+              {bonus && (
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                      <StarsIcon sx={{ fontSize: 18, color: NEON_GREEN }} />
+                      <Typography 
+                          variant="caption" 
+                          sx={{ fontWeight: 800, color: NEON_GREEN, letterSpacing: 0.5, textTransform: 'uppercase' }}
+                      >
+                          {bonus}
+                      </Typography>
+                  </Stack>
+              )}
+            </Box>
+          )}
+        </Box>
+        
+        {chipLabel && (
+          <Box mt={3}>
+              <Chip 
+                icon={<BoltIcon sx={{ fontSize: '14px !important', color: 'inherit !important' }} />}
+                label={chipLabel}
+                size="small" 
+                sx={{ 
+                  bgcolor: isHero ? `${NEON_GREEN}15` : isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', 
+                  color: isHero ? NEON_GREEN : 'text.secondary', 
+                  fontWeight: 900,
+                  fontSize: '10px',
+                  height: 24,
+                  border: `1px solid ${isHero ? `${NEON_GREEN}30` : isDark ? '#333' : '#DDD'}`,
+                  borderRadius: 1.5
+                }} 
+              />
           </Box>
         )}
-      </Box>
-      
-      {chipLabel && (
-        <Box mt={3}>
-            <Chip 
-              icon={<BoltIcon sx={{ fontSize: '14px !important', color: 'inherit !important' }} />}
-              label={chipLabel}
-              size="small" 
-              sx={{ 
-                bgcolor: isHero ? `${NEON_GREEN}15` : 'rgba(255,255,255,0.05)', 
-                color: isHero ? NEON_GREEN : '#888', 
-                fontWeight: 900,
-                fontSize: '10px',
-                height: 24,
-                border: `1px solid ${isHero ? `${NEON_GREEN}30` : '#333'}`,
-                borderRadius: 1.5
-              }} 
-            />
-        </Box>
-      )}
-    </CardContent>
+      </CardContent>
 
-    <style jsx global>{`
-      @keyframes pulse-border {
-        0% { transform: scale(1); opacity: 0.5; }
-        50% { transform: scale(1.02); opacity: 0.2; }
-        100% { transform: scale(1); opacity: 0.5; }
-      }
-    `}</style>
-  </Card>
-);
+      <style jsx global>{`
+        @keyframes pulse-border {
+          0% { transform: scale(1); opacity: 0.5; }
+          50% { transform: scale(1.02); opacity: 0.2; }
+          100% { transform: scale(1); opacity: 0.5; }
+        }
+      `}</style>
+    </Card>
+  );
+};
 
 const rawVaultAddress = process.env.NEXT_PUBLIC_HL_VAULT_ADDRESS;
 if (!rawVaultAddress) {
@@ -154,10 +161,10 @@ const YieldStats: React.FC = () => {
     <Box sx={{ width: '100%', py: 8 }}>
       <Fade in timeout={1000}>
         <Box mb={8} textAlign="center">
-            <Typography variant="h3" sx={{ fontWeight: 900, mb: 1, letterSpacing: '-1.5px', textTransform: 'uppercase' }}>
+            <Typography variant="h3" sx={{ fontWeight: 900, mb: 1, letterSpacing: '-1.5px', textTransform: 'uppercase', color: 'text.primary' }}>
                 Tactical <Box component="span" sx={{ color: NEON_GREEN }}>Yield Intelligence</Box>
             </Typography>
-            <Typography variant="body1" sx={{ color: '#666', fontWeight: 500 }}>
+            <Typography variant="body1" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                 {realLoading ? "Analyzing Strategy..." : `Live Execution: ${vaultName} Protocol`}
             </Typography>
         </Box>
@@ -185,7 +192,7 @@ const YieldStats: React.FC = () => {
             isHero
             loading={realLoading}
             bonus={`+ Reward Pool & DP Multiplier`}
-            chipLabel={vaultName || "Delta Neutral Engine"}
+            chipLabel={vaultName || "HLP Aggregator"}
             icon={<AutoGraphIcon sx={{ fontSize: 32 }} />}
           />
         </Box>
