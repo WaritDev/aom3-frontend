@@ -1,80 +1,92 @@
 import { NextResponse } from 'next/server';
-import { HttpTransport } from "@nktkas/hyperliquid";
-import { vaultDetails } from "@nktkas/hyperliquid/api/info";
+import * as hl from "@nktkas/hyperliquid";
 import { type Hex } from 'viem';
 
 const HLP_ADDRESS = "0xdfc24b077bc1425ad1dea75bcb6f8158e10df303";
-const transport = new HttpTransport({ isTestnet: false });
+const transport = new hl.HttpTransport();
+const client = new hl.InfoClient({ transport });
 
-const HLP_HISTORIC_RETURNS: Record<string, number> = {
-    "2025-11": 1.33, "2025-12": -0.24,
-    "2025-10": 146.00, "2025-09": 9.90, "2025-08": 10.03,
-    "2024-12": 15.94, "2024-11": 31.84, "2024-01": 84.78
-};
-
-export async function POST() { 
+export async function POST(req: Request) {
     try {
-        const data = await vaultDetails({ transport }, { vaultAddress: HLP_ADDRESS as Hex });
-        if (!data || !data.portfolio) return NextResponse.json({ error: 'Data not found' }, { status: 404 });
+        const body = await req.json().catch(() => ({}));
+        const vaultAddress = body.vaultAddress || HLP_ADDRESS;
 
-        const allTimeEntry = data.portfolio.find(item => item[0] === 'allTime');
-        const snapshots = allTimeEntry?.[1].accountValueHistory || [];
-        const pnlSnapshots = allTimeEntry?.[1].pnlHistory || [];
+        const vaultData = await client.vaultDetails({ vaultAddress: vaultAddress as Hex });
+        const allTime = vaultData?.portfolio?.find(item => item[0] === 'allTime');
+        
+        if (!allTime) return NextResponse.json({ error: 'Data not found' }, { status: 404 });
 
-        const monthlyAggregation = new Map<string, { totalReturn: number; lastEquity: number }>();
+        const snapshots = allTime[1].accountValueHistory;
+        const pnlHistory = allTime[1].pnlHistory;
+
+        const pnlMap = new Map<number, number>();
+        pnlHistory.forEach(([ts, pnl]) => pnlMap.set(ts as number, parseFloat(pnl as string)));
+
+        let sharePrice = 1.0;
+        const navHistory: { ts: number, dateKey: string, price: number }[] = [];
+
+        if (snapshots.length > 0) {
+            const firstTs = snapshots[0][0] as number;
+            const d = new Date(firstTs);
+            const dateKey = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+            navHistory.push({ ts: firstTs, dateKey, price: sharePrice });
+        }
 
         for (let i = 1; i < snapshots.length; i++) {
-            const prevEquity = parseFloat(snapshots[i-1][1]);
-            const currentPnl = parseFloat(pnlSnapshots[i][1]);
-            const prevPnl = parseFloat(pnlSnapshots[i-1][1]);
+            const ts = snapshots[i][0] as number;
+            const prevTs = snapshots[i - 1][0] as number;
+            const prevEquity = parseFloat(snapshots[i - 1][1] as string);
+
+            const currentPnl = pnlMap.get(ts) || 0;
+            const prevPnl = pnlMap.get(prevTs) || 0;
 
             if (prevEquity > 0) {
-                const dailyRate = (currentPnl - prevPnl) / prevEquity;
-                const d = new Date(snapshots[i][0]);
-                const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                
-                const existing = monthlyAggregation.get(monthKey) || { totalReturn: 0, lastEquity: 0 };
-                monthlyAggregation.set(monthKey, {
-                    totalReturn: existing.totalReturn + dailyRate,
-                    lastEquity: parseFloat(snapshots[i][1])
-                });
-            }
-        }
-
-        const history = [];
-        for (let i = 11; i >= 0; i--) {
-            const targetDate = new Date();
-            targetDate.setMonth(targetDate.getMonth() - i);
-            const key = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}`;
-            const label = targetDate.toLocaleString('en-US', { month: 'short', year: '2-digit' });
-
-            let apr = 0;
-            if (HLP_HISTORIC_RETURNS[key]) {
-                apr = HLP_HISTORIC_RETURNS[key];
-            } else if (monthlyAggregation.has(key)) {
-                const calc = monthlyAggregation.get(key)!;
-                apr = Number((calc.totalReturn * 12 * 100).toFixed(2));
-            } else {
-                continue;
+                const deltaPnl = currentPnl - prevPnl;
+                const returnRate = deltaPnl / prevEquity;
+                sharePrice *= (1 + returnRate);
             }
 
-            history.push({
-                date: label,
-                apr: apr,
-                equity: monthlyAggregation.get(key)?.lastEquity || parseFloat(snapshots[snapshots.length-1][1]),
-                isMock: false
-            });
+            const d = new Date(ts);
+            const dateKey = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+            
+            navHistory.push({ ts, dateKey, price: sharePrice });
         }
 
-        const jan26 = history.find(h => h.date === 'Jan 26');
-        if (jan26 && jan26.apr < 100) jan26.apr = 110.05;
+        const endOfMonthPrices: Record<string, number> = {};
+        const months = Array.from(new Set(navHistory.map(n => n.dateKey)));
 
-        return NextResponse.json({
-            vaultAddress: HLP_ADDRESS,
-            tvl: parseFloat(snapshots[snapshots.length - 1][1]),
-            averageAnnualApr: (data.apr || 0) * 100,
-            history: history
+        months.forEach(m => {
+            const dataInMonth = navHistory.filter(n => n.dateKey === m);
+            endOfMonthPrices[m] = dataInMonth[dataInMonth.length - 1].price;
         });
+
+        const monthlyReturns: Record<string, Record<string, number>> = {};
+
+        for (let i = 0; i < months.length; i++) {
+            const m = months[i];
+            const [year, month] = m.split('-');
+
+            let startPrice = 1.0;
+            if (i > 0) {
+                startPrice = endOfMonthPrices[months[i - 1]];
+            } else {
+                startPrice = navHistory.filter(n => n.dateKey === m)[0].price;
+            }
+
+            const endPrice = endOfMonthPrices[m];
+            
+            const yieldPct = ((endPrice / startPrice) - 1) * 100;
+
+            if (!monthlyReturns[year]) monthlyReturns[year] = {};
+            monthlyReturns[year][month] = Number(yieldPct.toFixed(2));
+        }
+
+        const tableData = Object.keys(monthlyReturns).map(year => ({
+            year,
+            returns: monthlyReturns[year]
+        })).sort((a, b) => b.year.localeCompare(a.year));
+
+        return NextResponse.json({ tableData });
 
     } catch (error) {
         console.error("API Error:", error);

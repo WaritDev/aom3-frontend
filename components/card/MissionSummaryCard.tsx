@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useMemo } from 'react';
 import { 
     Zoom, Card, CardContent, Stack, Box, Typography, 
     Divider, Button, CircularProgress, Tooltip
@@ -9,8 +9,10 @@ import StarsIcon from '@mui/icons-material/Stars';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import YieldChart from '../chart/YieldChart';
 import { CheckCircleIcon } from 'lucide-react';
+import { useRealYield } from '@/hooks/useRealYield';
 
 const NEON_GREEN = '#00E08F';
+const HLP_ADDRESS = "0x49d05977597b22e3c73d654c351adde9d9920e18";
 
 interface MissionSummaryCardProps {
     isYieldLoading: boolean;
@@ -35,18 +37,12 @@ export const MissionSummaryCard: React.FC<MissionSummaryCardProps> = ({
     isDeploying,
     statusStep,
     onInitialize,
-    coinSymbol = 'BTC',
     durationMultiplier,
     durationMonths
 }) => {
-    const [liveBaseApy, setLiveBaseApy] = useState<number | null>(null);
-
-    const handleApyLoad = useCallback((apy: number) => {
-        setLiveBaseApy(apy);
-    }, []);
-
+    const { apy: fetchedApy, loading: isApyLoading } = useRealYield(HLP_ADDRESS);
     const calculation = useMemo(() => {
-        const apy = liveBaseApy ?? Number(initialApy) ?? 0;
+        const apy = fetchedApy > 0 ? fetchedApy : (Number(initialApy) || 0);
         const monthlyRate = apy / 100 / 12;
         
         let futureValue = 0;
@@ -65,7 +61,7 @@ export const MissionSummaryCard: React.FC<MissionSummaryCardProps> = ({
             total: futureValue,
             principal: totalPrincipal
         };
-    }, [liveBaseApy, initialApy, amountNum, durationMonths]);
+    }, [fetchedApy, initialApy, amountNum, durationMonths]);
 
     const isInsufficientBalance = amountNum > walletBalance;
     const isButtonDisabled = !amountNum || amountNum < 10 || isDeploying || isInsufficientBalance;
@@ -114,7 +110,11 @@ export const MissionSummaryCard: React.FC<MissionSummaryCardProps> = ({
                                 EST. MAX APY (INCL. BOOST)
                             </Typography>
                             <Typography variant="h2" fontWeight="900" sx={{ color: NEON_GREEN, letterSpacing: -2 }}>
-                                {liveBaseApy === null ? <CircularProgress size={30} color="inherit" /> : `${calculation.apy}%`}
+                                {isApyLoading && fetchedApy === 0 ? (
+                                    <CircularProgress size={30} color="inherit" />
+                                ) : (
+                                    `${calculation.apy}%`
+                                )}
                             </Typography>
                             <Stack direction="row" spacing={1} justifyContent={{ xs: 'center', md: 'flex-start' }} mt={1}>
                                 <StarsIcon sx={{ fontSize: 18, color: NEON_GREEN }} />
@@ -153,9 +153,9 @@ export const MissionSummaryCard: React.FC<MissionSummaryCardProps> = ({
                     <Box sx={{ 
                         mb: 4, borderRadius: 3, overflow: 'hidden', 
                         border: '1px solid rgba(255,255,255,0.1)', 
-                        bgcolor: '#000', height: 380, position: 'relative'
+                        bgcolor: '#000', height: 460, position: 'relative'
                     }}>
-                        <YieldChart coin={coinSymbol} onApyLoad={handleApyLoad} />
+                        <YieldChart/>
                     </Box>
                     
                     <Button 
