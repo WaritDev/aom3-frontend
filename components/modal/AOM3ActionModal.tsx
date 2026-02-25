@@ -54,7 +54,6 @@ export const AOM3ActionModal: React.FC<AOM3ActionModalProps> = ({
         return (allowance as bigint) < amountBigInt;
     }, [allowance, amountBigInt, isWithdraw, isLoadingAllowance]);
 
-    // ✨ Seamless Action: หนึ่งคลิก รันสองธุรกรรม
     const handleAction = async () => {
         setIsInternalLoading(true);
         try {
@@ -69,7 +68,6 @@ export const AOM3ActionModal: React.FC<AOM3ActionModalProps> = ({
                 await refetchAllowance(); 
                 console.log("✅ Approval Success. Proceeding to Step 2...");
             }
-            // เรียกฟังก์ชันฝากหรือถอนต่อทันที
             await onConfirm();
         } catch (err) {
             console.error("❌ Transaction failed:", err);
@@ -97,7 +95,10 @@ export const AOM3ActionModal: React.FC<AOM3ActionModalProps> = ({
             }}
         >
             <DialogTitle sx={{ p: 3, pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" fontWeight="900">{title}</Typography>
+                <Typography variant="h6" fontWeight="900" component="div">
+                    {title}
+                </Typography>
+                
                 <IconButton onClick={onClose} sx={{ color: '#444' }} disabled={isProcessing}>
                     <CloseIcon />
                 </IconButton>
