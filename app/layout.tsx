@@ -1,10 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import { AppRouterCacheProvider } from '@mui/material-nextjs/v14-appRouter';
-import { ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import theme from '@/theme';
 import { Providers } from '@/app/providers'; 
+import ThemeRegistry from '@/components/ThemeRegistry';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -13,21 +10,14 @@ export const metadata: Metadata = {
   description: 'DeFi Savings Protocol',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body className={inter.className}>
         <Providers>
-          <AppRouterCacheProvider>
-            <ThemeProvider theme={theme}>
-              <CssBaseline />
+          <ThemeRegistry>
               {children}
-            </ThemeProvider>
-          </AppRouterCacheProvider>
+          </ThemeRegistry>
         </Providers>
       </body>
     </html>
