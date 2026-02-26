@@ -16,7 +16,7 @@ const ScrollReveal = ({ children }: { children: React.ReactNode }) => (
     initial={{ opacity: 0, y: 50 }}
     whileInView={{ opacity: 1, y: 0 }}
     viewport={{ once: true, margin: "-100px" }}
-    transition={{ duration: 0.8, ease: "easeOut" }}
+    transition={{ duration: 1, ease: "easeOut" }}
   >
     {children}
   </motion.div>
@@ -42,6 +42,8 @@ export default function Home() {
         color: 'text.primary',
         minHeight: '100vh', 
         overflowX: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
         transition: 'background-color 0.3s ease'
       }}
     >
@@ -61,10 +63,13 @@ export default function Home() {
       />
 
       <Navbar /> 
-
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }}>
-        <HeroSection />
-      </motion.div>
+      <Box sx={{ 
+        position: 'relative',
+      }}>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }}>
+          <HeroSection />
+        </motion.div>
+      </Box>
 
       <ScrollReveal>
         <Box sx={{ py: 8, px: 2 }}>

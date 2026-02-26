@@ -53,12 +53,19 @@ const HeroSection: React.FC = () => {
   return (
     <Box
       sx={{
-        position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+        position: 'relative',
+        minHeight: { xs: 'auto', md: 'calc(100vh - 80px)' }, 
+        pt: { xs: '80px', md: '120px' },
+        pb: 10,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
         bgcolor: 'background.default',
         background: isDark 
-            ? `radial-gradient(circle at 50% 20%, ${alpha(NEON_GREEN, 0.15)} 0%, rgba(5, 5, 5, 0) 60%),
+            ? `radial-gradient(circle at 50% 30%, ${alpha(NEON_GREEN, 0.15)} 0%, rgba(5, 5, 5, 0) 60%),
               linear-gradient(to bottom, #050505, #0a0a0a)`
-            : `radial-gradient(circle at 50% 20%, ${alpha(NEON_GREEN, 0.1)} 0%, rgba(255, 255, 255, 0) 60%),
+            : `radial-gradient(circle at 50% 30%, ${alpha(NEON_GREEN, 0.1)} 0%, rgba(255, 255, 255, 0) 60%),
               linear-gradient(to bottom, #F5F5F5, #FFFFFF)`,
         transition: 'all 0.4s ease'
       }}
@@ -77,7 +84,7 @@ const HeroSection: React.FC = () => {
             </Box>
 
             <Box>
-              <Typography variant="h1" sx={{ fontSize: { xs: '3.5rem', md: '7rem' }, fontWeight: 900, lineHeight: 0.85, letterSpacing: '-5px', background: isDark ? `linear-gradient(180deg, #FFF 40%, ${NEON_GREEN} 160%)` : `linear-gradient(180deg, #111 40%, ${NEON_GREEN} 160%)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textTransform: 'uppercase', mb: 1 }}>
+              <Typography variant="h1" sx={{ fontSize: { xs: '3.5rem', md: '6.8rem' }, fontWeight: 900, lineHeight: 0.85, letterSpacing: '-5px', background: isDark ? `linear-gradient(180deg, #FFF 40%, ${NEON_GREEN} 160%)` : `linear-gradient(180deg, #111 40%, ${NEON_GREEN} 160%)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textTransform: 'uppercase', mb: 1 }}>
                 DISCIPLINE <br /> <Box component="span" sx={{ textShadow: isDark ? `0 0 60px ${alpha(NEON_GREEN, 0.5)}` : 'none' }}>AS A</Box> MAKER
               </Typography>
             </Box>
@@ -98,7 +105,7 @@ const HeroSection: React.FC = () => {
             </Stack>
 
             <Box sx={{ 
-                pt: 8, pb: 2, width: '100%', overflow: 'hidden', position: 'relative',
+                pt: 0, width: '100%', overflow: 'hidden', position: 'relative',
                 maskImage: 'linear-gradient(to right, transparent, black 20%, black 80%, transparent)',
                 WebkitMaskImage: 'linear-gradient(to right, transparent, black 20%, black 80%, transparent)',
             }}>
@@ -108,7 +115,7 @@ const HeroSection: React.FC = () => {
                 
                 <Box sx={{ display: 'flex', width: 'max-content' }}>
                   <motion.div
-                    animate={{ x: [0, "-50%"] }}
+                    animate={{ x: ["0%", "-50%"] }} 
                     transition={{
                       x: { repeat: Infinity, repeatType: "loop", duration: 25, ease: "linear" }
                     }}
