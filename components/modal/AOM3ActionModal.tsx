@@ -3,7 +3,8 @@
 import React, { useState, useMemo } from 'react';
 import { 
     Dialog, DialogContent, DialogTitle, Box, Typography, 
-    Stack, Button, IconButton, Divider, CircularProgress 
+    Stack, Button, IconButton, Divider, CircularProgress,
+    useTheme, alpha 
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
@@ -36,6 +37,9 @@ export const AOM3ActionModal: React.FC<AOM3ActionModalProps> = ({
     const isWithdraw = type === 'withdraw';
     const [isInternalLoading, setIsInternalLoading] = useState(false);
     
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+    
     const amountBigInt = useMemo(() => parseUnits(amount || "0", 6), [amount]);
 
     const { data: allowance, refetch: refetchAllowance, isLoading: isLoadingAllowance } = useReadContract({
@@ -58,7 +62,6 @@ export const AOM3ActionModal: React.FC<AOM3ActionModalProps> = ({
         setIsInternalLoading(true);
         try {
             if (needsApproval) {
-                console.log("🛠️ Step 1: Requesting Infinite Approval...");
                 await approveAsync({
                     address: USDC_ADDRESS,
                     abi: USDC_ABI,
@@ -66,7 +69,6 @@ export const AOM3ActionModal: React.FC<AOM3ActionModalProps> = ({
                     args: [AOM3_VAULT_ADDRESS, maxUint256], 
                 });
                 await refetchAllowance(); 
-                console.log("✅ Approval Success. Proceeding to Step 2...");
             }
             await onConfirm();
         } catch (err) {
@@ -84,48 +86,55 @@ export const AOM3ActionModal: React.FC<AOM3ActionModalProps> = ({
             onClose={onClose}
             PaperProps={{
                 sx: {
-                    bgcolor: '#0A0A0A',
+                    bgcolor: 'background.paper',
                     backgroundImage: 'none',
-                    border: `1px solid ${isWithdraw && penalty > 0 ? ERROR_RED : NEON_GREEN}`,
+                    border: `1px solid ${isWithdraw && penalty > 0 ? ERROR_RED : (isDark ? alpha(NEON_GREEN, 0.4) : theme.palette.divider)}`,
                     borderRadius: 4,
-                    color: 'white',
+                    color: 'text.primary',
                     maxWidth: '400px',
-                    width: '100%'
+                    width: '100%',
+                    boxShadow: isDark ? `0 24px 48px rgba(0,0,0,0.5)` : `0 12px 32px ${alpha(NEON_GREEN, 0.1)}`
                 }
             }}
         >
             <DialogTitle sx={{ p: 3, pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" fontWeight="900" component="div">
+                <Typography variant="h6" fontWeight="900" component="div" sx={{ color: 'text.primary' }}>
                     {title}
                 </Typography>
                 
-                <IconButton onClick={onClose} sx={{ color: '#444' }} disabled={isProcessing}>
+                <IconButton onClick={onClose} sx={{ color: 'text.disabled' }} disabled={isProcessing}>
                     <CloseIcon />
                 </IconButton>
             </DialogTitle>
 
             <DialogContent sx={{ p: 3, pt: 1 }}>
                 <Stack spacing={3}>
-                    <Box sx={{ p: 2, bgcolor: '#111', borderRadius: 2, textAlign: 'center' }}>
-                        <Typography variant="caption" color="text.secondary">TRANSACTION AMOUNT</Typography>
-                        <Typography variant="h4" fontWeight="900" sx={{ color: isWithdraw ? 'white' : NEON_GREEN }}>
-                            {amount} USDC
+                    <Box sx={{ 
+                        p: 3, 
+                        bgcolor: isDark ? alpha(theme.palette.common.white, 0.03) : alpha(theme.palette.common.black, 0.02), 
+                        borderRadius: 3, 
+                        textAlign: 'center',
+                        border: `1px solid ${theme.palette.divider}`
+                    }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, letterSpacing: 1 }}>TRANSACTION AMOUNT</Typography>
+                        <Typography variant="h4" fontWeight="900" sx={{ color: isWithdraw ? 'text.primary' : NEON_GREEN, mt: 0.5 }}>
+                            {amount} <Typography component="span" variant="h6" fontWeight="900">USDC</Typography>
                         </Typography>
                     </Box>
 
                     {!isWithdraw && (
                         <Stack direction="row" spacing={1.5} justifyContent="center" alignItems="center">
                             <Typography variant="caption" sx={{ 
-                                color: !needsApproval ? NEON_GREEN : '#666', 
+                                color: !needsApproval ? NEON_GREEN : 'text.disabled', 
                                 display: 'flex', alignItems: 'center', gap: 0.5,
-                                fontWeight: !needsApproval ? 800 : 400
+                                fontWeight: !needsApproval ? 800 : 600
                             }}>
                                 1. Approve {!needsApproval && <CheckCircleOutlineIcon sx={{ fontSize: 14 }} />}
                             </Typography>
-                            <Typography variant="caption" color="#222"> | </Typography>
+                            <Typography variant="caption" color="divider"> | </Typography>
                             <Typography variant="caption" sx={{ 
-                                color: !needsApproval ? NEON_GREEN : '#666',
-                                fontWeight: !needsApproval ? 800 : 400
+                                color: isProcessing && !isApproving ? NEON_GREEN : 'text.disabled',
+                                fontWeight: 800
                             }}>
                                 2. Deposit
                             </Typography>
@@ -133,28 +142,28 @@ export const AOM3ActionModal: React.FC<AOM3ActionModalProps> = ({
                     )}
 
                     {isWithdraw && penalty > 0 ? (
-                        <Box sx={{ p: 2, bgcolor: `${ERROR_RED}15`, borderRadius: 2, border: `1px solid ${ERROR_RED}44` }}>
+                        <Box sx={{ p: 2, bgcolor: alpha(ERROR_RED, 0.1), borderRadius: 3, border: `1px solid ${alpha(ERROR_RED, 0.2)}` }}>
                             <Stack direction="row" spacing={1} mb={0.5}>
                                 <WarningAmberIcon sx={{ color: ERROR_RED, fontSize: 20 }} />
                                 <Typography variant="subtitle2" fontWeight="900" color={ERROR_RED}>EARLY WITHDRAWAL PENALTY</Typography>
                             </Stack>
-                            <Typography variant="body2" color="#ff9999">
+                            <Typography variant="body2" sx={{ color: isDark ? '#ff9999' : '#c62828', fontWeight: 500 }}>
                                 Early redemption detected. A 10% penalty will be deducted and redirected to the Reward Pool, totaling {penalty.toFixed(2)} USDC.
                             </Typography>
                         </Box>
                     ) : type === 'deposit' && (
-                        <Box sx={{ p: 2, bgcolor: `${NEON_GREEN}15`, borderRadius: 2, border: `1px solid ${NEON_GREEN}44` }}>
+                        <Box sx={{ p: 2, bgcolor: alpha(NEON_GREEN, 0.1), borderRadius: 3, border: `1px solid ${alpha(NEON_GREEN, 0.2)}` }}>
                             <Stack direction="row" spacing={1} mb={0.5}>
                                 <RocketLaunchIcon sx={{ color: NEON_GREEN, fontSize: 20 }} />
                                 <Typography variant="subtitle2" fontWeight="900" color={NEON_GREEN}>STREAK COMBO</Typography>
                             </Stack>
-                            <Typography variant="body2" color="#99ffda">
+                            <Typography variant="body2" sx={{ color: isDark ? '#99ffda' : '#007a4d', fontWeight: 500 }}>
                                 Complete this deposit to extend your streak to month {streak + 1} and qualify for Global Pool rewards.
                             </Typography>
                         </Box>
                     )}
 
-                    <Divider sx={{ borderColor: '#222' }} />
+                    <Divider sx={{ borderColor: theme.palette.divider }} />
 
                     <Button 
                         fullWidth 
@@ -163,16 +172,21 @@ export const AOM3ActionModal: React.FC<AOM3ActionModalProps> = ({
                         disabled={isProcessing || isLoadingAllowance}
                         startIcon={isProcessing && <CircularProgress size={20} color="inherit" />}
                         sx={{ 
-                            py: 1.5, borderRadius: 2, fontWeight: 900, fontSize: '1rem',
+                            py: 2, borderRadius: 2.5, fontWeight: 900, fontSize: '1rem',
                             bgcolor: isWithdraw && penalty > 0 ? ERROR_RED : NEON_GREEN,
                             color: '#000',
-                            '&:hover': { bgcolor: isWithdraw && penalty > 0 ? '#cc0000' : '#00C97F' }
+                            boxShadow: `0 8px 20px ${alpha(isWithdraw && penalty > 0 ? ERROR_RED : NEON_GREEN, 0.3)}`,
+                            '&:hover': { 
+                                bgcolor: isWithdraw && penalty > 0 ? '#cc0000' : '#00C97F',
+                                transform: 'translateY(-2px)'
+                            },
+                            transition: 'all 0.2s'
                         }}
                     >
                         {isLoadingAllowance ? "CHECKING STATUS..." : 
                             isApproving ? "STEP 1/2: APPROVING..." : 
                             (loading || isInternalLoading ? "STEP 2/2: PROCESSING..." : 
-                            (needsApproval ? "INITIALIZE & DEPOSIT" : `CONFIRM ${type.toUpperCase()}`))}
+                            (needsApproval ? "APPROVE & DEPOSIT" : `CONFIRM ${type.toUpperCase()}`))}
                     </Button>
                 </Stack>
             </DialogContent>

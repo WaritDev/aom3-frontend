@@ -11,9 +11,8 @@ export default function AppLayout({
     children: React.ReactNode;
     }) {
     return (
-        <Box sx={{ minHeight: '100vh', bgcolor: '#050505' }}>
+        <Box >
             <AppNavbar />
-
             <Box component="main" sx={{ p: { xs: 2, md: 4 } }}>
                 <WalletGuard>
                     {children}

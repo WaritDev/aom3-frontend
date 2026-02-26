@@ -1,20 +1,24 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   AppBar, Toolbar, Typography, Button, Stack, Container, 
-  IconButton, Drawer, List, ListItem, ListItemButton, ListItemText, Box , Divider
+  IconButton, Drawer, List, ListItem, ListItemButton, ListItemText, Box, Divider,
+  useTheme, alpha, Tooltip
 } from '@mui/material';
+
 import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
+import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
+import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
+
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { ColorModeContext } from '@/components/ThemeRegistry'; 
 
 const NEON_GREEN = '#00E08F';
-const BG_DARK = '#0a0a0a';
-const BORDER_COLOR = '#1E1E1E';
 
 const NAV_ITEMS = [
   { label: 'Overview', path: '/overview' },
@@ -25,24 +29,30 @@ const NAV_ITEMS = [
 const AppNavbar = () => {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+
+  const { toggleColorMode } = useContext(ColorModeContext);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
   const navButtonStyle = (isActive: boolean) => ({
-    color: isActive ? NEON_GREEN : '#888',
-    fontWeight: isActive ? 900 : 600,
+    color: isActive 
+      ? NEON_GREEN 
+      : (isDark ? 'rgba(255,255,255,0.6)' : 'text.secondary'),
+    fontWeight: isActive ? 900 : 700,
     fontSize: '0.85rem',
     textTransform: 'uppercase',
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
     px: 2,
     position: 'relative',
-    transition: 'all 0.2s',
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
     '&:hover': { 
-      color: '#fff', 
+      color: isDark ? '#fff' : '#000', 
       bgcolor: 'transparent',
-      textShadow: `0 0 10px ${NEON_GREEN}80` 
     },
     '&::after': isActive ? {
       content: '""',
@@ -50,10 +60,10 @@ const AppNavbar = () => {
       bottom: 6,
       left: 16,
       right: 16,
-      height: '2px',
+      height: '3px',
       bgcolor: NEON_GREEN,
-      borderRadius: '2px',
-      boxShadow: `0 0 10px ${NEON_GREEN}`
+      borderRadius: '4px',
+      boxShadow: isDark ? `0 0 12px ${NEON_GREEN}` : `0 2px 4px ${alpha(NEON_GREEN, 0.4)}`
     } : {}
   });
 
@@ -63,11 +73,11 @@ const AppNavbar = () => {
         position="sticky" 
         elevation={0} 
         sx={{ 
-          bgcolor: BG_DARK, 
-          borderBottom: `1px solid ${BORDER_COLOR}`,
+          bgcolor: alpha(theme.palette.background.paper, 0.85),
+          borderBottom: `1px solid ${theme.palette.divider}`,
           zIndex: (theme) => theme.zIndex.drawer + 1,
-          backdropFilter: 'blur(10px)',
-          background: `linear-gradient(to bottom, ${BG_DARK}, rgba(10, 10, 10, 0.8))`
+          backdropFilter: 'blur(16px)',
+          backgroundImage: 'none'
         }}
       >
         <Container maxWidth="xl">
@@ -76,14 +86,18 @@ const AppNavbar = () => {
               
               <Link href="/" style={{ textDecoration: 'none' }}>
                 <Stack direction="row" alignItems="center" spacing={1.5}>
-                  <AutoGraphIcon sx={{ color: NEON_GREEN, fontSize: 30, filter: `drop-shadow(0 0 5px ${NEON_GREEN}80)` }} />
-                  <Typography variant="h5" fontWeight={900} color="white" sx={{ letterSpacing: -1, textTransform: 'uppercase' }}>
+                  <AutoGraphIcon sx={{ 
+                    color: NEON_GREEN, 
+                    fontSize: 32, 
+                    filter: isDark ? `drop-shadow(0 0 8px ${NEON_GREEN}80)` : 'none' 
+                  }} />
+                  <Typography variant="h5" fontWeight={900} color="text.primary" sx={{ letterSpacing: -1.2, textTransform: 'uppercase' }}>
                     AOM<Box component="span" sx={{ color: NEON_GREEN }}>3</Box>
                   </Typography>
                 </Stack>
               </Link>
 
-              <Stack direction="row" spacing={1} sx={{ display: { xs: 'none', md: 'flex' }, ml: 4, flex: 1 }}>
+              <Stack direction="row" spacing={0.5} sx={{ display: { xs: 'none', md: 'flex' }, ml: 4, flex: 1 }}>
                 {NAV_ITEMS.map((item) => (
                   <Link key={item.label} href={item.path} style={{ textDecoration: 'none' }}>
                     <Button disableRipple sx={navButtonStyle(pathname === item.path)}>
@@ -93,7 +107,30 @@ const AppNavbar = () => {
                 ))}
               </Stack>
 
-              <Stack direction="row" spacing={2} alignItems="center">
+              <Stack direction="row" spacing={{ xs: 1, sm: 2 }} alignItems="center">
+                
+                <Tooltip title={`Switch to ${isDark ? 'Light' : 'Dark'} Mode`}>
+                  <IconButton 
+                    onClick={toggleColorMode} 
+                    sx={{ 
+                      color: isDark ? 'rgba(255,255,255,0.7)' : 'text.secondary',
+                      bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+                      border: `1px solid ${theme.palette.divider}`,
+                      borderRadius: 2.5,
+                      p: 1.2,
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        color: NEON_GREEN,
+                        bgcolor: isDark ? alpha(NEON_GREEN, 0.1) : alpha(NEON_GREEN, 0.05),
+                        borderColor: alpha(NEON_GREEN, 0.5),
+                        transform: 'rotate(15deg)'
+                      }
+                    }}
+                  >
+                    {isDark ? <LightModeOutlinedIcon fontSize="small" /> : <DarkModeOutlinedIcon fontSize="small" />}
+                  </IconButton>
+                </Tooltip>
+
                 <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
                   <ConnectButton 
                     showBalance={{ smallScreen: false, largeScreen: true }}
@@ -102,11 +139,9 @@ const AppNavbar = () => {
                 </Box>
                 
                 <IconButton
-                  color="inherit"
-                  aria-label="open drawer"
                   edge="start"
                   onClick={handleDrawerToggle}
-                  sx={{ display: { md: 'none' }, color: NEON_GREEN }}
+                  sx={{ display: { md: 'none' }, color: isDark ? NEON_GREEN : 'text.primary' }}
                 >
                   <MenuIcon />
                 </IconButton>
@@ -123,39 +158,44 @@ const AppNavbar = () => {
         onClose={handleDrawerToggle}
         PaperProps={{
           sx: { 
-            width: '280px', 
-            bgcolor: BG_DARK, 
-            borderLeft: `1px solid ${BORDER_COLOR}`,
+            width: '300px', 
+            bgcolor: 'background.paper', 
+            borderLeft: `1px solid ${theme.palette.divider}`,
             backgroundImage: 'none',
-            p: 2
+            p: 3
           }
         }}
       >
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
-          <IconButton onClick={handleDrawerToggle} sx={{ color: '#888' }}>
-            <CloseIcon />
-          </IconButton>
-        </Box>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
+            <Typography variant="h6" fontWeight={900} color="text.primary">MENU</Typography>
+            <IconButton onClick={handleDrawerToggle} sx={{ color: 'text.secondary' }}>
+              <CloseIcon />
+            </IconButton>
+        </Stack>
 
-        <List>
+        <List sx={{ pt: 0 }}>
           {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.path;
             return (
-              <ListItem key={item.label} disablePadding sx={{ mb: 1 }}>
+              <ListItem key={item.label} disablePadding sx={{ mb: 1.5 }}>
                 <Link href={item.path} style={{ textDecoration: 'none', width: '100%' }} onClick={handleDrawerToggle}>
                   <ListItemButton 
                     sx={{ 
-                      borderRadius: 2,
-                      bgcolor: isActive ? 'rgba(0, 224, 143, 0.1)' : 'transparent',
-                      borderLeft: isActive ? `3px solid ${NEON_GREEN}` : '3px solid transparent'
+                      borderRadius: 3,
+                      py: 1.5,
+                      bgcolor: isActive ? alpha(NEON_GREEN, 0.1) : 'transparent',
+                      borderLeft: isActive ? `5px solid ${NEON_GREEN}` : '5px solid transparent',
+                      transition: 'all 0.2s'
                     }}
                   >
                     <ListItemText 
                       primary={item.label} 
                       primaryTypographyProps={{ 
-                        fontWeight: isActive ? 900 : 500, 
-                        color: isActive ? NEON_GREEN : '#888',
-                        letterSpacing: 1
+                        fontWeight: isActive ? 900 : 600, 
+                        color: isActive ? NEON_GREEN : 'text.secondary',
+                        textTransform: 'uppercase',
+                        letterSpacing: 1,
+                        fontSize: '0.95rem'
                       }} 
                     />
                   </ListItemButton>
@@ -165,11 +205,30 @@ const AppNavbar = () => {
           })}
         </List>
 
-        <Divider sx={{ borderColor: '#222', my: 3 }} />
+        <Divider sx={{ my: 4 }} />
         
-        <Box sx={{ px: 2, display: { sm: 'none' } }}>
-            <ConnectButton />
-        </Box>
+        <Stack spacing={2}>
+            <Button 
+                fullWidth 
+                variant="outlined" 
+                onClick={toggleColorMode}
+                startIcon={isDark ? <LightModeOutlinedIcon /> : <DarkModeOutlinedIcon />}
+                sx={{ 
+                    borderRadius: 3, 
+                    py: 1.5, 
+                    fontWeight: 800, 
+                    color: 'text.primary', 
+                    borderColor: theme.palette.divider,
+                    '&:hover': { borderColor: NEON_GREEN, bgcolor: alpha(NEON_GREEN, 0.05) }
+                }}
+            >
+                {isDark ? 'LIGHT MODE' : 'DARK MODE'}
+            </Button>
+
+            <Box sx={{ display: { sm: 'none' } }}>
+                <ConnectButton label="CONNECT WALLET" />
+            </Box>
+        </Stack>
       </Drawer>
     </>
   );

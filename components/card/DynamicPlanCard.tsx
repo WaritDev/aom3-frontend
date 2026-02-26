@@ -6,7 +6,7 @@ import { useReadContract } from 'wagmi';
 import { 
     Card, CardContent, Stack, Box, Typography, 
     LinearProgress, Button, Skeleton, Divider, Chip, Tooltip,
-    Dialog, DialogContent, CircularProgress,
+    Dialog, DialogContent, CircularProgress, useTheme, alpha
 } from '@mui/material';
 
 import MilitaryTechIcon from '@mui/icons-material/MilitaryTech';
@@ -23,6 +23,7 @@ const NEON_GREEN = '#00E08F';
 const NEON_ORANGE = '#FFA500';
 const NEON_RED = '#FF4D4D';
 const GOLD_COLOR = '#FFD700';
+
 interface StatusModalProps {
     open: boolean;
     status: 'processing' | 'success' | 'error';
@@ -32,49 +33,58 @@ interface StatusModalProps {
     onClose: () => void;
 }
 
-const TransactionStatusModal = ({ open, status, step, message, onClose }: StatusModalProps) => (
-    <Dialog 
-        open={open} 
-        onClose={status !== 'processing' ? onClose : undefined}
-        PaperProps={{
-            sx: { bgcolor: '#050505', border: `1px solid ${status === 'error' ? NEON_RED : NEON_GREEN}44`, borderRadius: 4, backgroundImage: 'none', minWidth: 340 }
-        }}
-    >
-        <DialogContent sx={{ p: 4, textAlign: 'center' }}>
-            <Stack spacing={3} alignItems="center">
-                {status === 'processing' && (
-                    <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-                        <CircularProgress size={80} thickness={2} sx={{ color: NEON_GREEN }} />
-                        <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-                            <Typography variant="h6" sx={{ fontWeight: 900, color: NEON_GREEN, lineHeight: 1 }}>{step}/3</Typography>
-                            <Typography variant="caption" sx={{ color: NEON_GREEN, fontWeight: 700, fontSize: 10 }}>STEP</Typography>
+const TransactionStatusModal = ({ open, status, step, message, onClose }: StatusModalProps) => {
+    const theme = useTheme();
+    return (
+        <Dialog 
+            open={open} 
+            onClose={status !== 'processing' ? onClose : undefined}
+            PaperProps={{
+                sx: { 
+                    bgcolor: 'background.paper',
+                    border: `1px solid ${status === 'error' ? NEON_RED : NEON_GREEN}44`, 
+                    borderRadius: 4, 
+                    backgroundImage: 'none', 
+                    minWidth: 340 
+                }
+            }}
+        >
+            <DialogContent sx={{ p: 4, textAlign: 'center' }}>
+                <Stack spacing={3} alignItems="center">
+                    {status === 'processing' && (
+                        <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                            <CircularProgress size={80} thickness={2} sx={{ color: NEON_GREEN }} />
+                            <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+                                <Typography variant="h6" sx={{ fontWeight: 900, color: NEON_GREEN, lineHeight: 1 }}>{step}/3</Typography>
+                                <Typography variant="caption" sx={{ color: NEON_GREEN, fontWeight: 700, fontSize: 10 }}>STEP</Typography>
+                            </Box>
                         </Box>
+                    )}
+                    {status === 'success' && <CheckCircleIcon sx={{ fontSize: 80, color: NEON_GREEN }} />}
+                    {status === 'error' && <ErrorOutlineIcon sx={{ fontSize: 80, color: NEON_RED }} />}
+
+                    <Box>
+                        <Typography variant="h6" fontWeight={900} color="text.primary" sx={{ textTransform: 'uppercase', mb: 1 }}>
+                            {status === 'processing' ? 'Processing Action' : status === 'success' ? 'Mission Success' : 'Action Failed'}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500, lineHeight: 1.6 }}>
+                            {message}
+                        </Typography>
                     </Box>
-                )}
-                {status === 'success' && <CheckCircleIcon sx={{ fontSize: 80, color: NEON_GREEN }} />}
-                {status === 'error' && <ErrorOutlineIcon sx={{ fontSize: 80, color: NEON_RED }} />}
 
-                <Box>
-                    <Typography variant="h6" fontWeight={900} color="white" sx={{ textTransform: 'uppercase', mb: 1 }}>
-                        {status === 'processing' ? 'Processing Action' : status === 'success' ? 'Mission Success' : 'Action Failed'}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', fontWeight: 500, lineHeight: 1.6 }}>
-                        {message}
-                    </Typography>
-                </Box>
-
-                {status !== 'processing' && (
-                    <Button 
-                        fullWidth variant="contained" onClick={onClose}
-                        sx={{ bgcolor: status === 'error' ? NEON_RED : NEON_GREEN, color: '#000', fontWeight: 900, borderRadius: 2, py: 1.5, '&:hover': { bgcolor: 'white' } }}
-                    >
-                        {status === 'error' ? 'TRY AGAIN' : 'CONTINUE'}
-                    </Button>
-                )}
-            </Stack>
-        </DialogContent>
-    </Dialog>
-);
+                    {status !== 'processing' && (
+                        <Button 
+                            fullWidth variant="contained" onClick={onClose}
+                            sx={{ bgcolor: status === 'error' ? NEON_RED : NEON_GREEN, color: '#000', fontWeight: 900, borderRadius: 2, py: 1.5, '&:hover': { bgcolor: alpha(theme.palette.common.white, 0.8) } }}
+                        >
+                            {status === 'error' ? 'TRY AGAIN' : 'CONTINUE'}
+                        </Button>
+                    )}
+                </Stack>
+            </DialogContent>
+        </Dialog>
+    );
+};
 
 interface DynamicPlanCardProps {
     questId: bigint;
@@ -86,6 +96,9 @@ type QuestData = readonly [
 ];
 
 export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onActionSuccess }) => {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+    
     const [isProcessing, setIsProcessing] = useState(false);
     const [currentTime, setCurrentTime] = useState<number>(0);
     const [modalConfig, setModalConfig] = useState<{ open: boolean; type: 'deposit' | 'withdraw'; }>({ open: false, type: 'deposit' });
@@ -138,7 +151,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
     }, [questData, currentTime]);
 
     if (isLoading || !questData) {
-        return <Skeleton variant="rectangular" height={220} sx={{ borderRadius: 4, bgcolor: '#1A1A1A' }} />;
+        return <Skeleton variant="rectangular" height={220} sx={{ borderRadius: 4, bgcolor: 'background.paper' }} />;
     }
 
     const [, monthlyAmount, totalDeposited, currentStreak, duration, startTimestamp, , dp, active] = questData;
@@ -159,17 +172,12 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
     const handleConfirmAction = async () => {
         setModalConfig(prev => ({ ...prev, open: false }));
         setIsProcessing(true);
-        
         const totalSteps = modalConfig.type === 'deposit' ? 2 : 3;
-        
         const amountToReturn = isMatured ? totalDepNum : totalDepNum * 0.9;
         const contribution = isMatured ? 0 : totalDepNum * 0.1;
 
         setStatusModal({
-            open: true, 
-            status: 'processing', 
-            step: 1,
-            totalSteps: totalSteps,
+            open: true, status: 'processing', step: 1, totalSteps: totalSteps,
             message: modalConfig.type === 'deposit' 
                 ? `Step 1/${totalSteps}: Signing Commitment on Arbitrum...` 
                 : `Step 1/${totalSteps}: Recovering $${totalDepNum} from HL Vault...`
@@ -179,10 +187,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
             if (modalConfig.type === 'deposit') {
                 const hash = await depositAction(monthlyAmtStr, Number(duration)); 
                 if (hash) {
-                    setStatusModal(prev => ({ 
-                        ...prev, step: 2, 
-                        message: `Step 2/${totalSteps}: Deploying to HL Yield Strategy...` 
-                    }));
+                    setStatusModal(prev => ({ ...prev, step: 2, message: `Step 2/${totalSteps}: Deploying to HL Yield Strategy...` }));
                     await runAutoDeposit(monthlyAmtStr);
                 }
             } else {                
@@ -196,61 +201,41 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                     }
                     throw innerErr;
                 }
-
-                setStatusModal(prev => ({ 
-                    ...prev, step: 2, 
-                    message: `Step 2/${totalSteps}: Bridging funds to your wallet (Sign Required)...` 
-                }));
+                setStatusModal(prev => ({ ...prev, step: 2, message: `Step 2/${totalSteps}: Bridging funds to your wallet (Sign Required)...` }));
                 await new Promise(r => setTimeout(r, 2000));
                 await withdrawToWallet(totalDepNum.toString());
-
                 setStatusModal(prev => ({ 
                     ...prev, step: 3, 
-                    message: isMatured 
-                        ? `Step 3/${totalSteps}: Finalizing full redemption on Arbitrum...` 
-                        : `Step 3/${totalSteps}: Processing Early Exit (10% contribution to Reward Pool)...` 
+                    message: isMatured ? `Step 3/${totalSteps}: Finalizing full redemption on Arbitrum...` : `Step 3/${totalSteps}: Processing Early Exit (10% contribution to Reward Pool)...` 
                 }));
                 await withdrawAction(Number(questId));
             }
-            
             setStatusModal(prev => ({
-                ...prev,
-                status: 'success', 
-                message: modalConfig.type === 'deposit' 
-                    ? 'Quest Updated! Your funds are earning yield.' 
-                    : isMatured 
-                        ? `Redeemed $${amountToReturn.toLocaleString()} successfully!` 
-                        : `Exit Complete! $${amountToReturn.toLocaleString()} returned. You contributed $${contribution.toLocaleString()} to the Savers Reward Pool. 🤝`
+                ...prev, status: 'success', 
+                message: modalConfig.type === 'deposit' ? 'Quest Updated! Your funds are earning yield.' : isMatured ? `Redeemed $${amountToReturn.toLocaleString()} successfully!` : `Exit Complete! $${amountToReturn.toLocaleString()} returned. You contributed $${contribution.toLocaleString()} to the Savers Reward Pool. 🤝`
             }));
-
             await refetch();
             onActionSuccess?.();
-
         } catch (outerErr: unknown) {
-            console.error("Action Error Details:", outerErr);
             const errorMessage = outerErr instanceof Error ? outerErr.message : "Blockchain transaction failed.";
-            setStatusModal(prev => ({ 
-                ...prev, 
-                status: 'error', 
-                message: errorMessage 
-            }));
-        } finally { 
-            setIsProcessing(false); 
-        }
+            setStatusModal(prev => ({ ...prev, status: 'error', message: errorMessage }));
+        } finally { setIsProcessing(false); }
     };
 
     return (
         <>
             <Card sx={{ 
-                bgcolor: '#0D0D0D', border: `1px solid ${isMatured ? NEON_GREEN : (coolingStatus.isLocked ? `${NEON_GREEN}44` : '#222')}`, 
+                bgcolor: 'background.paper',
+                border: `1px solid ${isMatured ? NEON_GREEN : (coolingStatus.isLocked ? alpha(NEON_GREEN, 0.3) : theme.palette.divider)}`, 
                 borderRadius: 4, position: 'relative', overflow: 'visible', transition: '0.3s',
-                '&:hover': { borderColor: NEON_GREEN, boxShadow: `0 0 25px ${NEON_GREEN}15` }
+                backgroundImage: 'none',
+                '&:hover': { borderColor: NEON_GREEN, boxShadow: isDark ? `0 0 25px ${alpha(NEON_GREEN, 0.15)}` : `0 4px 20px ${alpha(NEON_GREEN, 0.1)}` }
             }}>
                 <Box sx={{ position: 'absolute', top: -14, right: 24, zIndex: 1 }}>
                     <Chip 
                         icon={<MilitaryTechIcon sx={{ color: '#000 !important', fontSize: 18 }} />}
                         label={`${Number(dp).toLocaleString()} DP`}
-                        sx={{ bgcolor: GOLD_COLOR, fontWeight: 900, color: '#000', px: 1, height: 28, boxShadow: `0 4px 15px ${GOLD_COLOR}66` }}
+                        sx={{ bgcolor: GOLD_COLOR, fontWeight: 900, color: '#000', px: 1, height: 28, boxShadow: `0 4px 15px ${alpha(GOLD_COLOR, 0.4)}` }}
                     />
                 </Box>
 
@@ -258,41 +243,41 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                     <Stack direction={{ xs: 'column', md: 'row' }} spacing={4}>
                         <Box sx={{ flex: 2 }}>
                             <Stack direction="row" spacing={1} alignItems="center" mb={1.5}>
-                                <Typography variant="h6" fontWeight="900" color="white" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Typography variant="h6" fontWeight="900" color="text.primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                     {isMatured ? <CheckCircleIcon sx={{ color: NEON_GREEN }} /> : null}
                                     {isMatured ? "STRATEGY MATURED" : "ACTIVE SAVINGS QUEST"}
                                 </Typography>
-                                <Chip label={`Streak: ${currentStreak}`} size="small" sx={{ bgcolor: 'rgba(0, 224, 143, 0.1)', color: NEON_GREEN, fontWeight: 800, borderRadius: 1.5 }} />
+                                <Chip label={`Streak: ${currentStreak}`} size="small" sx={{ bgcolor: alpha(NEON_GREEN, 0.1), color: NEON_GREEN, fontWeight: 800, borderRadius: 1.5 }} />
                             </Stack>
 
                             <Box mb={2.5}>
                                 <Stack direction="row" justifyContent="space-between" mb={1}>
-                                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>MATURITY PROGRESS</Typography>
-                                    <Typography variant="caption" sx={{ color: 'white', fontWeight: 800 }}>{progress.toFixed(0)}%</Typography>
+                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>MATURITY PROGRESS</Typography>
+                                    <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 800 }}>{progress.toFixed(0)}%</Typography>
                                 </Stack>
-                                <LinearProgress variant="determinate" value={progress} sx={{ height: 8, borderRadius: 4, bgcolor: '#1A1A1A', '& .MuiLinearProgress-bar': { bgcolor: isMatured ? NEON_GREEN : NEON_ORANGE } }} />
+                                <LinearProgress variant="determinate" value={progress} sx={{ height: 8, borderRadius: 4, bgcolor: theme.palette.divider, '& .MuiLinearProgress-bar': { bgcolor: isMatured ? NEON_GREEN : NEON_ORANGE } }} />
                             </Box>
 
                             <Stack direction="row" spacing={4}>
                                 <Box>
-                                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', display: 'block' }}>EST. NETWORK SHARE</Typography>
-                                    <Typography variant="body2" color="white" fontWeight={800}>{networkShare.toFixed(4)}%</Typography>
+                                    <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block' }}>EST. NETWORK SHARE</Typography>
+                                    <Typography variant="body2" color="text.primary" fontWeight={800}>{networkShare.toFixed(4)}%</Typography>
                                 </Box>
                                 <Box>
-                                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', display: 'block' }}>MATURITY DATE</Typography>
-                                    <Typography variant="body2" color={isMatured ? NEON_GREEN : "white"} fontWeight={800}>
+                                    <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block' }}>MATURITY DATE</Typography>
+                                    <Typography variant="body2" color={isMatured ? NEON_GREEN : "text.primary"} fontWeight={800}>
                                         {new Date(maturityTimestamp * 1000).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                                     </Typography>
                                 </Box>
                             </Stack>
                         </Box>
 
-                        <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.05)', display: { xs: 'none', md: 'block' } }} />
+                        <Divider orientation="vertical" flexItem sx={{ borderColor: theme.palette.divider, display: { xs: 'none', md: 'block' } }} />
 
                         <Box sx={{ flex: 1, textAlign: { xs: 'left', md: 'right' }, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                             <Box mb={3}>
-                                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 700, display: 'block' }}>{isMatured ? "TOTAL REDEEMABLE" : "EMERGENCY WITHDRAWAL"}</Typography>
-                                <Typography variant="h3" fontWeight="900" sx={{ color: isMatured ? NEON_GREEN : 'white', letterSpacing: -1 }}>
+                                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, display: 'block' }}>{isMatured ? "TOTAL REDEEMABLE" : "EMERGENCY WITHDRAWAL"}</Typography>
+                                <Typography variant="h3" fontWeight="900" sx={{ color: isMatured ? NEON_GREEN : 'text.primary', letterSpacing: -1 }}>
                                     ${(totalDepNum - penaltyAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </Typography>
                                 {!isMatured && (
@@ -308,7 +293,12 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                                     <Button 
                                         variant="outlined" disabled={isWithdrawLocked || isProcessing}
                                         onClick={() => setModalConfig({ open: true, type: 'withdraw' })}
-                                        sx={{ borderRadius: 2, px: 3, borderColor: isWithdrawLocked ? '#222' : (isMatured ? NEON_GREEN : NEON_RED), color: isWithdrawLocked ? '#444' : (isMatured ? NEON_GREEN : NEON_RED), fontWeight: 800 }}
+                                        sx={{ 
+                                            borderRadius: 2, px: 3, 
+                                            borderColor: isWithdrawLocked ? theme.palette.divider : (isMatured ? NEON_GREEN : NEON_RED), 
+                                            color: isWithdrawLocked ? 'text.disabled' : (isMatured ? NEON_GREEN : NEON_RED), 
+                                            fontWeight: 800 
+                                        }}
                                     >
                                         {isWithdrawLocked ? "LOCKED" : (isMatured ? "REDEEM" : "EXIT QUEST")}
                                     </Button>
@@ -318,7 +308,14 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                                     <Button 
                                         variant="contained" disabled={!canDeposit || isProcessing}
                                         onClick={() => setModalConfig({ open: true, type: 'deposit' })}
-                                        sx={{ borderRadius: 2, px: 3, bgcolor: canDeposit ? NEON_GREEN : '#222', color: canDeposit ? '#000' : '#666', fontWeight: 900, boxShadow: canDeposit ? `0 4px 15px ${NEON_GREEN}44` : 'none' }}
+                                        sx={{ 
+                                            borderRadius: 2, px: 3, 
+                                            bgcolor: canDeposit ? NEON_GREEN : theme.palette.divider, 
+                                            color: canDeposit ? '#000' : 'text.disabled', 
+                                            fontWeight: 900, 
+                                            boxShadow: canDeposit ? `0 4px 15px ${alpha(NEON_GREEN, 0.4)}` : 'none',
+                                            '&:hover': { bgcolor: alpha(NEON_GREEN, 0.8) }
+                                        }}
                                     >
                                         {coolingStatus.isLocked ? coolingStatus.label : (isWindowOpen ? "DEPOSIT" : "WAIT WINDOW")}
                                     </Button>

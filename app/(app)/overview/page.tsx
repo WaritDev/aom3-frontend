@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { 
     Container, Typography, Box, Card, CardContent, Stack, 
     Button, Chip, Divider, CircularProgress,
-    Fade, Grow, Zoom, Tooltip
+    Fade, Grow, Zoom, Tooltip, useTheme, alpha
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
@@ -38,6 +38,9 @@ export default function OverviewPage() {
     const { address } = useAccount();
     const [isClaiming, setIsClaiming] = useState(false);
     
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+    
     const { 
         isWindowOpen, nextQuestId, rewardPoolBalance, 
         totalDP: globalTotalDP, currentDay, claimRewardAction 
@@ -45,7 +48,7 @@ export default function OverviewPage() {
 
     const { 
         hlBalance, vaultEquity, vaultApr, vaultPnl,
-        isAutoInvesting, hasAgent, createAndApproveAgent 
+        isAutoInvesting, hasAgent
     } = useHL();
 
     const questIds = useMemo(() => 
@@ -110,120 +113,217 @@ export default function OverviewPage() {
     };
 
     return (
-        <Container maxWidth="lg" sx={{ py: 8 }}>
-        
-        <Fade in timeout={800}>
-            <Stack direction="row" justifyContent="space-between" alignItems="flex-end" sx={{ mb: 5 }}>
-                <Box>
-                    <Typography variant="overline" sx={{ color: NEON_GREEN, fontWeight: 900, letterSpacing: 3 }}>OPERATIONAL TERMINAL</Typography>
-                    <Typography variant="h3" fontWeight="900" sx={{ letterSpacing: -2, lineHeight: 1 }}>
-                        QUEST <Box component="span" sx={{ color: NEON_GREEN }}>DASHBOARD</Box>
-                    </Typography>
-                </Box>
-                
-                <Stack direction="row" spacing={2}>
-                    <Tooltip title={hasAgent ? "Automator Active" : "Click to enable"}>
-                        <Chip 
-                            icon={<SmartToyIcon style={{ color: hasAgent ? NEON_GREEN : '#555' }} />}
-                            label={hasAgent ? "AGENT READY" : "AGENT OFFLINE"} 
-                            onClick={!hasAgent ? createAndApproveAgent : undefined}
-                            sx={{ bgcolor: hasAgent ? `${NEON_GREEN}10` : 'transparent', color: hasAgent ? NEON_GREEN : '#555', border: `1px solid ${hasAgent ? NEON_GREEN : '#333'}`, fontWeight: 900, borderRadius: 2, cursor: hasAgent ? 'default' : 'pointer' }} 
-                        />
-                    </Tooltip>
-                    <Chip label={isWindowOpen ? "SYSTEM ACTIVE" : "VAULT STANDBY"} sx={{ bgcolor: isWindowOpen ? `${NEON_GREEN}15` : 'transparent', color: isWindowOpen ? NEON_GREEN : '#555', border: `1px solid ${isWindowOpen ? NEON_GREEN : '#333'}`, fontWeight: 900, borderRadius: 2 }} />
-                </Stack>
-            </Stack>
-        </Fade>
-
-        {isAutoInvesting && (
-            <Grow in>
-                <Box sx={{ mb: 4, p: 2, borderRadius: 2, bgcolor: `${NEON_GREEN}10`, border: `1px solid ${NEON_GREEN}44`, display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <CircularProgress size={20} sx={{ color: NEON_GREEN }} />
-                    <Typography variant="body2" sx={{ color: NEON_GREEN, fontWeight: 800 }}>AUTOMATOR ACTIVE: TRANSFERRING ${hlBalance} TO VAULT...</Typography>
-                </Box>
-            </Grow>
-        )}
-
-        <Grow in timeout={1000}>
-            <Card sx={{ background: 'linear-gradient(145deg, #0a120b 0%, #000 100%)', border: `1px solid ${NEON_GREEN}33`, mb: 4, borderRadius: 3, boxShadow: `0 20px 60px rgba(0,0,0,0.8)` }}>
-                <CardContent sx={{ p: 4 }}>
-                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} divider={<Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.05)' }} />}>
-                        <Box sx={{ flex: 1 }}>
-                            <Typography variant="caption" sx={{ color: NEON_GREEN, fontWeight: 900, display: 'block', mb: 1 }}>MY VAULT EQUITY</Typography>
-                            <Typography variant="h3" fontWeight="900" color="white">${Number(vaultEquity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Typography>
-                            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
-                                <TrendingUpIcon sx={{ fontSize: 16, color: Number(vaultPnl) >= 0 ? NEON_GREEN : '#FF4444' }} />
-                                <Typography variant="body2" sx={{ color: Number(vaultPnl) >= 0 ? NEON_GREEN : '#FF4444', fontWeight: 800 }}>
-                                    {Number(vaultPnl) >= 0 ? '+' : ''}${Number(vaultPnl).toFixed(2)} USD PnL
-                                </Typography>
-                            </Stack>
+        <Box sx={{ 
+            bgcolor: 'background.default', 
+            minHeight: '100vh', 
+            width: '100%',
+            transition: 'background-color 0.3s ease',
+            color: 'text.primary' 
+        }}>
+            <Container maxWidth="lg" sx={{ py: 8 }}>
+            
+                <Fade in timeout={800}>
+                    <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'flex-end' }} spacing={3} sx={{ mb: 6 }}>
+                        <Box>
+                            <Typography variant="overline" sx={{ color: NEON_GREEN, fontWeight: 900, letterSpacing: 3 }}>OPERATIONAL TERMINAL</Typography>
+                            <Typography variant="h3" fontWeight="900" sx={{ letterSpacing: -2, lineHeight: 1, color: 'text.primary' }}>
+                                QUEST <Box component="span" sx={{ color: NEON_GREEN }}>DASHBOARD</Box>
+                            </Typography>
                         </Box>
-                        <Box sx={{ flex: 1, textAlign: 'center' }}>
-                            <Typography variant="caption" sx={{ color: GOLD_COLOR, fontWeight: 900, display: 'block', mb: 1 }}>VAULT YIELD (APR)</Typography>
-                            <Typography variant="h3" fontWeight="900" color={GOLD_COLOR}>{(vaultApr * 100).toFixed(2)}%</Typography>
-                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.4)', mt: 1 }}>Est. Monthly: +{((vaultApr / 12) * 100).toFixed(2)}%</Typography>
-                        </Box>
+                        
+                        <Stack direction="row" spacing={2}>
+                            <Tooltip title={hasAgent ? "Automator Active" : "Click to enable"}>
+                                <Chip 
+                                    icon={<SmartToyIcon style={{ color: hasAgent ? NEON_GREEN : (isDark ? '#555' : '#aaa') }} />}
+                                    label={hasAgent ? "AGENT READY" : "AGENT OFFLINE"} 
+                                    sx={{ 
+                                        bgcolor: hasAgent ? alpha(NEON_GREEN, 0.1) : 'transparent', 
+                                        color: hasAgent ? NEON_GREEN : 'text.disabled', 
+                                        border: `1px solid ${hasAgent ? NEON_GREEN : theme.palette.divider}`, 
+                                        fontWeight: 900, borderRadius: 2 
+                                    }} 
+                                />
+                            </Tooltip>
+                            <Chip 
+                                label={isWindowOpen ? "SYSTEM ACTIVE" : "VAULT STANDBY"} 
+                                sx={{ 
+                                    bgcolor: isWindowOpen ? alpha(NEON_GREEN, 0.15) : 'transparent', 
+                                    color: isWindowOpen ? NEON_GREEN : 'text.disabled', 
+                                    border: `1px solid ${isWindowOpen ? NEON_GREEN : theme.palette.divider}`, 
+                                    fontWeight: 900, borderRadius: 2 
+                                }} 
+                            />
+                        </Stack>
                     </Stack>
-                </CardContent>
-            </Card>
-        </Grow>
+                </Fade>
 
-        <Grow in timeout={1100}>
-            <Card sx={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', mb: 8, borderRadius: 3 }}>
-                <CardContent sx={{ p: 4 }}>
-                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} alignItems="center">
-                        <Box sx={{ flex: 1 }}>
-                            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
-                                <AccountBalanceIcon sx={{ color: NEON_GREEN, fontSize: 18 }} />
-                                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 900 }}>GLOBAL TREASURY</Typography>
-                            </Stack>
-                            <Typography variant="h4" fontWeight="900" color="white">${Number(rewardPoolBalance).toLocaleString()}</Typography>
-                            <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
-                                <Typography variant="caption" sx={{ color: GOLD_COLOR, fontWeight: 800 }}>L1 CASH: ${Number(hlBalance).toFixed(2)}</Typography>
-                            </Stack>
+                {isAutoInvesting && (
+                    <Grow in>
+                        <Box sx={{ 
+                            mb: 4, p: 2, borderRadius: 3, 
+                            bgcolor: alpha(NEON_GREEN, 0.1), 
+                            border: `1px solid ${alpha(NEON_GREEN, 0.3)}`, 
+                            display: 'flex', alignItems: 'center', gap: 2 
+                        }}>
+                            <CircularProgress size={20} sx={{ color: NEON_GREEN }} />
+                            <Typography variant="body2" sx={{ color: NEON_GREEN, fontWeight: 800 }}>
+                                AUTOMATOR ACTIVE: TRANSFERRING ${hlBalance} TO VAULT...
+                            </Typography>
                         </Box>
+                    </Grow>
+                )}
 
-                        <Box sx={{ flex: 1.5, p: 2, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.05)' }}>
-                            <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                <Box>
-                                    <Typography variant="caption" sx={{ color: GOLD_COLOR, fontWeight: 900, display: 'block' }}>EST. REWARD</Typography>
-                                    <Typography variant="h5" fontWeight="900" color={GOLD_COLOR}>${estimatedReward.toLocaleString()}</Typography>
-                                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)' }}>Share: {networkShare.toFixed(3)}%</Typography>
+                <Grow in timeout={1000}>
+                    <Card sx={{ 
+                        background: isDark 
+                            ? 'linear-gradient(145deg, #0a120b 0%, #000 100%)' 
+                            : `linear-gradient(145deg, ${alpha(NEON_GREEN, 0.05)} 0%, #ffffff 100%)`, 
+                        border: `1px solid ${isDark ? alpha(NEON_GREEN, 0.2) : alpha(NEON_GREEN, 0.3)}`, 
+                        mb: 4, borderRadius: 4, 
+                        boxShadow: isDark ? `0 20px 60px rgba(0,0,0,0.6)` : `0 10px 40px ${alpha(NEON_GREEN, 0.08)}`,
+                        transition: 'all 0.3s ease',
+                        backgroundImage: 'none',
+                        backgroundIme: 'none'
+                    }}>
+                        <CardContent sx={{ p: 4 }}>
+                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} divider={
+                                <Divider orientation="vertical" flexItem sx={{ borderColor: theme.palette.divider }} />
+                            }>
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="caption" sx={{ color: NEON_GREEN, fontWeight: 900, display: 'block', mb: 1, letterSpacing: 1 }}>MY VAULT EQUITY</Typography>
+                                    <Typography variant="h3" fontWeight="900" color="text.primary">
+                                        ${Number(vaultEquity).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    </Typography>
+                                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.5 }}>
+                                        <TrendingUpIcon sx={{ fontSize: 18, color: Number(vaultPnl) >= 0 ? NEON_GREEN : '#FF4444' }} />
+                                        <Typography variant="body1" sx={{ color: Number(vaultPnl) >= 0 ? NEON_GREEN : '#FF4444', fontWeight: 800 }}>
+                                            {Number(vaultPnl) >= 0 ? '+' : ''}${Number(vaultPnl).toFixed(2)} USD PnL
+                                        </Typography>
+                                    </Stack>
                                 </Box>
-                                <Button 
-                                    variant="contained" 
-                                    disabled={!isClaimDay || isClaiming || myQuestIds.length === 0}
-                                    onClick={handleClaimAll}
-                                    startIcon={isClaiming ? <CircularProgress size={16} color="inherit" /> : <WorkspacePremiumIcon />}
-                                    sx={{ bgcolor: GOLD_COLOR, color: '#000', fontWeight: 900, borderRadius: 2, px: 3, '&:hover': { bgcolor: '#FFC107' } }}
-                                >
-                                    {isClaiming ? "SYNCING..." : "CLAIM ALL"}
-                                </Button>
+                                <Box sx={{ flex: 1, textAlign: { xs: 'left', md: 'center' } }}>
+                                    <Typography variant="caption" sx={{ color: isDark ? GOLD_COLOR : '#b38f00', fontWeight: 900, display: 'block', mb: 1, letterSpacing: 1 }}>VAULT YIELD (APR)</Typography>
+                                    <Typography variant="h3" fontWeight="900" color={isDark ? GOLD_COLOR : '#d4af37'}>{(vaultApr * 100).toFixed(2)}%</Typography>
+                                    <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1, fontWeight: 600 }}>
+                                        Est. Monthly: +{((vaultApr / 12) * 100).toFixed(2)}%
+                                    </Typography>
+                                </Box>
                             </Stack>
-                        </Box>
-                    </Stack>
-                </CardContent>
-            </Card>
-        </Grow>
+                        </CardContent>
+                    </Card>
+                </Grow>
 
-        <Fade in timeout={1300}>
-            <Stack spacing={4}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="h5" fontWeight="900" sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <AssessmentIcon sx={{ color: NEON_GREEN }} /> ACTIVE MISSIONS 
-                        <Chip label={myQuestIds.length} size="small" sx={{ bgcolor: '#111', color: '#666', fontWeight: 900 }} />
-                    </Typography>
-                    <Button variant="outlined" startIcon={<AddCircleOutlineIcon />} href="/deposit" sx={{ borderRadius: 2, color: '#FFF', borderColor: '#333', fontWeight: 800 }}>NEW QUEST</Button>
-                </Stack>
-                <Stack spacing={3}>
-                    {sortedMyQuestIds.map((id, index) => (
-                        <Zoom in key={id.toString()} timeout={500 + (index * 100)}>
-                            <Box><DynamicPlanCard questId={id} /></Box>
-                        </Zoom>
-                    ))}
-                </Stack>
-            </Stack>
-        </Fade>
-        </Container>
+                {/* Treasury Section */}
+                <Grow in timeout={1100}>
+                    <Card sx={{ 
+                        bgcolor: 'background.paper', 
+                        border: `1px solid ${theme.palette.divider}`, 
+                        mb: 8, borderRadius: 4,
+                        // 🚩 ลบเงาดำขนาดใหญ่ใน Light mode
+                        boxShadow: isDark ? 'none' : '0 8px 32px rgba(0,0,0,0.04)',
+                        backgroundImage: 'none', // 👈 ลบขอบมืดของ MUI
+                        transition: 'all 0.3s ease'
+                    }}>
+                        <CardContent sx={{ p: 4 }}>
+                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} alignItems="center">
+                                <Box sx={{ flex: 1 }}>
+                                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
+                                        <AccountBalanceIcon sx={{ color: NEON_GREEN, fontSize: 18 }} />
+                                        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 900, letterSpacing: 1 }}>GLOBAL TREASURY</Typography>
+                                    </Stack>
+                                    <Typography variant="h4" fontWeight="900" color="text.primary">${Number(rewardPoolBalance).toLocaleString()}</Typography>
+                                    <Stack direction="row" spacing={2} sx={{ mt: 1.5 }}>
+                                        <Typography variant="caption" sx={{ color: isDark ? GOLD_COLOR : '#b38f00', fontWeight: 800 }}>L1 CASH: ${Number(hlBalance).toFixed(2)}</Typography>
+                                    </Stack>
+                                </Box>
+
+                                <Box sx={{ 
+                                    flex: 1.5, p: 3, 
+                                    bgcolor: isDark ? alpha(theme.palette.common.white, 0.03) : alpha(theme.palette.common.black, 0.02), 
+                                    borderRadius: 3, 
+                                    border: `1px solid ${theme.palette.divider}`,
+                                    width: '100%'
+                                }}>
+                                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                        <Box>
+                                            <Typography variant="caption" sx={{ color: isDark ? GOLD_COLOR : '#b38f00', fontWeight: 900, display: 'block' }}>EST. REWARD</Typography>
+                                            <Typography variant="h5" fontWeight="900" color={isDark ? GOLD_COLOR : '#d4af37'}>${estimatedReward.toLocaleString()}</Typography>
+                                            <Typography variant="caption" sx={{ color: 'text.disabled', fontWeight: 600 }}>Share: {networkShare.toFixed(3)}%</Typography>
+                                        </Box>
+                                        <Button 
+                                            variant="contained" 
+                                            disabled={!isClaimDay || isClaiming || myQuestIds.length === 0}
+                                            onClick={handleClaimAll}
+                                            startIcon={isClaiming ? <CircularProgress size={16} color="inherit" /> : <WorkspacePremiumIcon />}
+                                            sx={{ 
+                                                bgcolor: GOLD_COLOR, 
+                                                color: '#000', 
+                                                fontWeight: 900, 
+                                                borderRadius: 2.5, 
+                                                px: 3, py: 1.2,
+                                                '&:hover': { bgcolor: '#FFC107' },
+                                                '&:disabled': { bgcolor: alpha(GOLD_COLOR, 0.3) }
+                                            }}
+                                        >
+                                            {isClaiming ? "SYNCING..." : "CLAIM ALL"}
+                                        </Button>
+                                    </Stack>
+                                </Box>
+                            </Stack>
+                        </CardContent>
+                    </Card>
+                </Grow>
+
+                {/* Missions List */}
+                <Fade in timeout={1300}>
+                    <Stack spacing={4}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center">
+                            <Typography variant="h5" fontWeight="900" sx={{ display: 'flex', alignItems: 'center', gap: 2, color: 'text.primary' }}>
+                                <AssessmentIcon sx={{ color: NEON_GREEN }} /> ACTIVE MISSIONS 
+                                <Chip 
+                                    label={myQuestIds.length} 
+                                    size="small" 
+                                    sx={{ bgcolor: isDark ? alpha(theme.palette.common.white, 0.05) : '#f0f0f0', color: 'text.secondary', fontWeight: 900 }} 
+                                />
+                            </Typography>
+                            <Button 
+                                variant="outlined" 
+                                startIcon={<AddCircleOutlineIcon />} 
+                                href="/deposit" 
+                                sx={{ 
+                                    borderRadius: 2.5, 
+                                    color: 'text.primary', 
+                                    borderColor: theme.palette.divider, 
+                                    fontWeight: 800,
+                                    '&:hover': { borderColor: NEON_GREEN, bgcolor: alpha(NEON_GREEN, 0.05) }
+                                }}
+                            >
+                                NEW QUEST
+                            </Button>
+                        </Stack>
+                        
+                        <Stack spacing={3}>
+                            {sortedMyQuestIds.length > 0 ? (
+                                sortedMyQuestIds.map((id, index) => (
+                                    <Zoom in key={id.toString()} timeout={500 + (index * 100)}>
+                                        <Box><DynamicPlanCard questId={id} /></Box>
+                                    </Zoom>
+                                ))
+                            ) : (
+                                <Box sx={{ 
+                                    textAlign: 'center', py: 10, 
+                                    bgcolor: alpha(theme.palette.divider, 0.1), 
+                                    borderRadius: 4, border: `2px dashed ${theme.palette.divider}` 
+                                }}>
+                                    <Typography color="text.disabled" fontWeight={700}>
+                                        NO ACTIVE MISSIONS FOUND. START YOUR DISCIPLINE JOURNEY TODAY.
+                                    </Typography>
+                                </Box>
+                            )}
+                        </Stack>
+                    </Stack>
+                </Fade>
+            </Container>
+        </Box>
     );
 }
