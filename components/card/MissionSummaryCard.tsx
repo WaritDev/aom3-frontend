@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import { 
     Zoom, Card, CardContent, Stack, Box, Typography, 
-    Divider, Button, CircularProgress, Tooltip
+    Divider, Button, CircularProgress, Tooltip, useTheme, alpha
 } from '@mui/material';
 import StarsIcon from '@mui/icons-material/Stars';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -40,7 +40,11 @@ export const MissionSummaryCard: React.FC<MissionSummaryCardProps> = ({
     durationMultiplier,
     durationMonths
 }) => {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+
     const { apy: fetchedApy, loading: isApyLoading } = useRealYield(HLP_ADDRESS);
+    
     const calculation = useMemo(() => {
         const apy = fetchedApy > 0 ? fetchedApy : (Number(initialApy) || 0);
         const monthlyRate = apy / 100 / 12;
@@ -69,21 +73,19 @@ export const MissionSummaryCard: React.FC<MissionSummaryCardProps> = ({
     const renderButtonContent = () => {
         if (statusStep === 3) return (
             <Stack direction="row" spacing={1} alignItems="center">
-                <CheckCircleIcon /> <Typography fontWeight={900}>MISSION INITIALIZED!</Typography>
+                <CheckCircleIcon size={20} /> <Typography fontWeight={900}>MISSION INITIALIZED!</Typography>
             </Stack>
         );
         
-        if (statusStep === 2) return (
+        const loadingTexts: Record<number, string> = {
+            1: "STEP 1/2: SIGNING AOM3 QUEST...",
+            2: "STEP 2/2: DEPLOYING TO HL VAULT..."
+        };
+
+        if (statusStep === 1 || statusStep === 2) return (
             <Stack direction="row" spacing={2} alignItems="center">
                 <CircularProgress size={20} color="inherit" />
-                <Typography fontWeight={900}>STEP 2/2: DEPLOYING TO HL VAULT...</Typography>
-            </Stack>
-        );
-        
-        if (statusStep === 1) return (
-            <Stack direction="row" spacing={2} alignItems="center">
-                <CircularProgress size={20} color="inherit" />
-                <Typography fontWeight={900}>STEP 1/2: SIGNING AOM3 QUEST...</Typography>
+                <Typography fontWeight={900}>{loadingTexts[statusStep as keyof typeof loadingTexts]}</Typography>
             </Stack>
         );
 
@@ -96,64 +98,77 @@ export const MissionSummaryCard: React.FC<MissionSummaryCardProps> = ({
     return (
         <Zoom in timeout={600}>
             <Card sx={{ 
-                background: 'linear-gradient(135deg, #0d2e15 0%, #050505 100%)', 
-                border: `1px solid ${statusStep === 3 ? '#FFF' : NEON_GREEN}`,
+                background: isDark 
+                    ? 'linear-gradient(135deg, #0d2e15 0%, #050505 100%)' 
+                    : `linear-gradient(135deg, ${alpha(NEON_GREEN, 0.08)} 0%, #ffffff 100%)`, 
+                border: `1px solid ${statusStep === 3 ? (isDark ? '#FFF' : NEON_GREEN) : alpha(NEON_GREEN, 0.3)}`,
                 borderRadius: 4,
-                boxShadow: statusStep === 3 ? `0 0 50px ${NEON_GREEN}40` : `0 0 30px ${NEON_GREEN}15`,
+                boxShadow: isDark 
+                    ? (statusStep === 3 ? `0 0 50px ${alpha(NEON_GREEN, 0.2)}` : `0 0 30px ${alpha(NEON_GREEN, 0.1)}`)
+                    : (statusStep === 3 ? `0 15px 40px ${alpha(NEON_GREEN, 0.2)}` : `0 10px 30px rgba(0,0,0,0.05)`),
                 transition: 'all 0.5s ease',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                backgroundImage: 'none'
             }}>
-                <CardContent sx={{ p: 4 }}>
-                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} alignItems="center" mb={4}>
+                <CardContent sx={{ p: { xs: 3, md: 5 } }}>
+                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} alignItems="center" mb={5}>
                         <Box sx={{ flex: 1, textAlign: { xs: 'center', md: 'left' } }}>
-                            <Typography variant="overline" sx={{ color: NEON_GREEN, fontWeight: 900, letterSpacing: 2 }}>
-                                EST. MAX APY (INCL. BOOST)
+                            <Typography variant="overline" sx={{ color: NEON_GREEN, fontWeight: 900, letterSpacing: 3 }}>
+                                Est. Max APY (Incl. Boost)
                             </Typography>
-                            <Typography variant="h2" fontWeight="900" sx={{ color: NEON_GREEN, letterSpacing: -2 }}>
+                            <Typography variant="h2" fontWeight="900" sx={{ color: isDark ? NEON_GREEN : NEON_GREEN, letterSpacing: -3 }}>
                                 {isApyLoading && fetchedApy === 0 ? (
-                                    <CircularProgress size={30} color="inherit" />
+                                    <CircularProgress size={40} thickness={5} sx={{ color: NEON_GREEN }} />
                                 ) : (
                                     `${calculation.apy}%`
                                 )}
                             </Typography>
-                            <Stack direction="row" spacing={1} justifyContent={{ xs: 'center', md: 'flex-start' }} mt={1}>
+                            <Stack direction="row" spacing={1} justifyContent={{ xs: 'center', md: 'flex-start' }} mt={1} alignItems="center">
                                 <StarsIcon sx={{ fontSize: 18, color: NEON_GREEN }} />
-                                <Typography variant="subtitle2" color="white" fontWeight="800">
-                                    {durationMultiplier}x DISCIPLINE WEIGHT ACTIVE
+                                <Typography variant="subtitle2" color="text.primary" fontWeight="900" sx={{ letterSpacing: 0.5 }}>
+                                    {durationMultiplier}X DISCIPLINE WEIGHT ACTIVE
                                 </Typography>
                             </Stack>
                         </Box>
 
-                        <Stack sx={{ flex: 1.2, width: '100%', bgcolor: 'rgba(255,255,255,0.03)', p: 2, borderRadius: 3 }} spacing={1.5}>
-                            <Box display="flex" justifyContent="space-between">
-                                <Typography color="rgba(255,255,255,0.5)" variant="body2" fontWeight={600}>Target Principal</Typography>
-                                <Typography fontWeight="800" color="white">{calculation.principal.toLocaleString()} USDC</Typography>
+                        <Stack sx={{ 
+                            flex: 1.3, width: '100%', 
+                            bgcolor: isDark ? alpha(theme.palette.common.white, 0.03) : alpha(theme.palette.common.black, 0.02), 
+                            p: 3, borderRadius: 3, border: `1px solid ${theme.palette.divider}`
+                        }} spacing={2}>
+                            <Box display="flex" justifyContent="space-between" alignItems="center">
+                                <Typography color="text.secondary" variant="body2" fontWeight={800} sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>Target Principal</Typography>
+                                <Typography fontWeight="900" color="text.primary" variant="body1">{calculation.principal.toLocaleString()} USDC</Typography>
                             </Box>
-                            <Box display="flex" justifyContent="space-between">
+                            
+                            <Box display="flex" justifyContent="space-between" alignItems="center">
                                 <Stack direction="row" spacing={0.5} alignItems="center">
-                                    <Typography color="rgba(255,255,255,0.5)" variant="body2" fontWeight={600}>Est. Real Yield</Typography>
+                                    <Typography color="text.secondary" variant="body2" fontWeight={800} sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>Est. Real Yield</Typography>
                                     <Tooltip title="Monthly Compounding Calculation">
-                                        <InfoOutlinedIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.3)' }} />
+                                        <InfoOutlinedIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
                                     </Tooltip>
                                 </Stack>
-                                <Typography fontWeight="800" color={NEON_GREEN}>
-                                    +{calculation.yield.toLocaleString(undefined, { minimumFractionDigits: 2 })} USDC
+                                <Typography fontWeight="900" color={NEON_GREEN} variant="body1">
+                                    +{calculation.yield.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC
                                 </Typography>
                             </Box>
-                            <Divider sx={{ my: 1, borderColor: 'rgba(255,255,255,0.1)' }} />
+
+                            <Divider sx={{ my: 0.5, borderColor: theme.palette.divider }} />
+                            
                             <Box display="flex" justifyContent="space-between" alignItems="center">
-                                <Typography variant="subtitle1" fontWeight="900" color="white">MATURITY TOTAL</Typography>
-                                <Typography variant="h5" fontWeight="900" color={NEON_GREEN}>
-                                    {calculation.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                <Typography variant="subtitle1" fontWeight="900" color="text.primary" sx={{ letterSpacing: 1 }}>MATURITY TOTAL</Typography>
+                                <Typography variant="h5" fontWeight="900" color={NEON_GREEN} sx={{ fontFamily: 'monospace' }}>
+                                    {calculation.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </Typography>
                             </Box>
                         </Stack>
                     </Stack>
 
                     <Box sx={{ 
-                        mb: 4, borderRadius: 3, overflow: 'hidden', 
-                        border: '1px solid rgba(255,255,255,0.1)', 
-                        bgcolor: '#000', height: 460, position: 'relative'
+                        mb: 4, borderRadius: 4, overflow: 'hidden', 
+                        border: `1px solid ${theme.palette.divider}`, 
+                        bgcolor: isDark ? '#000' : alpha(theme.palette.common.black, 0.01), 
+                        height: 460, position: 'relative'
                     }}>
                         <YieldChart/>
                     </Box>
@@ -163,13 +178,19 @@ export const MissionSummaryCard: React.FC<MissionSummaryCardProps> = ({
                         disabled={isButtonDisabled || statusStep === 3}
                         onClick={onInitialize}
                         sx={{ 
-                            py: 2.5, borderRadius: 3, fontWeight: 900, fontSize: '1.1rem',
-                            bgcolor: statusStep === 3 ? '#FFF' : NEON_GREEN, 
-                            color: '#000', 
-                            boxShadow: `0 10px 30px ${NEON_GREEN}30`,
-                            '&:hover': { bgcolor: '#00C97F', transform: 'translateY(-2px)' },
-                            '&:disabled': { bgcolor: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.2)' },
-                            transition: 'all 0.3s ease'
+                            py: 2.5, borderRadius: 3, fontWeight: 900, fontSize: '1.1rem', letterSpacing: 1,
+                            bgcolor: statusStep === 3 ? (isDark ? theme.palette.common.white : '#000') : NEON_GREEN, 
+                            color: statusStep === 3 ? (isDark ? '#000' : '#FFF') : '#000', 
+                            boxShadow: statusStep === 3 ? 'none' : `0 10px 30px ${alpha(NEON_GREEN, 0.3)}`,
+                            '&:hover': { 
+                                bgcolor: statusStep === 3 ? alpha(theme.palette.common.white, 0.9) : '#00C97F', 
+                                transform: 'translateY(-2px)' 
+                            },
+                            '&:disabled': { 
+                                bgcolor: isDark ? alpha(theme.palette.common.white, 0.05) : alpha(theme.palette.common.black, 0.05), 
+                                color: 'text.disabled' 
+                            },
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                         }}
                     >
                         {renderButtonContent()}

@@ -1,14 +1,16 @@
 'use client';
 
+import React from 'react';
 import { 
     Card, CardContent, Typography, Box, Stack, 
     Table, TableBody, TableCell, TableContainer, 
-    TableHead, TableRow, Paper, Chip 
+    TableHead, TableRow, Chip, useTheme, alpha 
 } from '@mui/material';
 import BoltIcon from '@mui/icons-material/Bolt';
 import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
 
 const NEON_GREEN = '#00E08F';
+const GOLD_COLOR = '#FFD700';
 
 const podLogic = [
     { duration: '3 Months', multiplier: '1.0x', status: 'Novice', weight: 'Base Share' },
@@ -19,72 +21,136 @@ const podLogic = [
 ];
 
 export const RewardEngineCard = () => {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+
+    const headerCellStyle = {
+        color: 'text.secondary',
+        fontWeight: 900,
+        letterSpacing: 1.5,
+        fontSize: '0.7rem',
+        textTransform: 'uppercase' as const,
+        borderBottom: `1px solid ${theme.palette.divider}`,
+        py: 2
+    };
+
     return (
-        <Card sx={{ bgcolor: '#0A0A0A', border: `1px solid #1E1E1E`, borderRadius: 4, overflow: 'hidden' }}>
-        <CardContent sx={{ p: 4 }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 3 }}>
-            <Box>
-                <Typography variant="h6" fontWeight="900" display="flex" alignItems="center" gap={1.5} sx={{ color: '#FFF' }}>
-                <BoltIcon sx={{ color: NEON_GREEN }} /> PROOF OF DISCIPLINE (PoD)
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                Your share = (Your DP / Total Network DP) × Reward Pool
-                </Typography>
-            </Box>
-            <Chip 
-                label="DYNAMIC CALCULATION" 
-                size="small" 
-                sx={{ bgcolor: 'rgba(0, 224, 143, 0.1)', color: NEON_GREEN, fontWeight: 900, fontSize: '0.65rem' }} 
-            />
-            </Stack>
-
-            {/* Formula Box */}
-            <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, mb: 3, border: '1px dashed #333' }}>
-                <Typography variant="body2" color="#888" textAlign="center">
-                    Discipline Points (DP) Formula:
-                </Typography>
-                <Typography variant="h6" color="white" textAlign="center" fontWeight="800" sx={{ mt: 0.5 }}>
-                    {`DP = Deposit Amount × Streak Multiplier`}
-                </Typography>
-            </Box>
-
-            {/* Table Section */}
-            <TableContainer component={Paper} sx={{ bgcolor: 'transparent', boxShadow: 'none' }}>
-            <Table size="small">
-                <TableHead>
-                <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.02)' }}>
-                    <TableCell sx={{ color: '#666', fontWeight: 800, borderColor: '#222', fontSize: '0.7rem' }}>STREAK DURATION</TableCell>
-                    <TableCell sx={{ color: '#666', fontWeight: 800, borderColor: '#222', fontSize: '0.7rem' }}>MULTIPLIER</TableCell>
-                    <TableCell sx={{ color: '#666', fontWeight: 800, borderColor: '#222', fontSize: '0.7rem' }}>RANK</TableCell>
-                    <TableCell sx={{ color: '#666', fontWeight: 800, borderColor: '#222', fontSize: '0.7rem' }} align="right">REWARD WEIGHT</TableCell>
-                </TableRow>
-                </TableHead>
-                <TableBody>
-                {podLogic.map((row) => (
-                    <TableRow key={row.duration} sx={{ '&:hover': { bgcolor: 'rgba(0, 224, 143, 0.03)' }, transition: '0.2s' }}>
-                    <TableCell sx={{ color: '#EEE', borderColor: '#111', fontWeight: 700 }}>{row.duration}</TableCell>
-                    <TableCell sx={{ color: NEON_GREEN, borderColor: '#111', fontWeight: 900 }}>{row.multiplier}</TableCell>
-                    <TableCell sx={{ borderColor: '#111' }}>
-                        <Typography variant="caption" sx={{ color: '#888', fontWeight: 700 }}>{row.status}</Typography>
-                    </TableCell>
-                    <TableCell sx={{ color: '#FFF', borderColor: '#111', fontWeight: 800 }} align="right">
-                        {row.weight}
-                    </TableCell>
-                    </TableRow>
-                ))}
-                </TableBody>
-            </Table>
-            </TableContainer>
-
-            <Box sx={{ mt: 3, p: 2, borderRadius: 2, bgcolor: 'rgba(255, 215, 0, 0.05)', border: '1px solid rgba(255, 215, 0, 0.1)' }}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                    <WorkspacePremiumIcon sx={{ color: '#FFD700', fontSize: 18 }} />
-                    <Typography variant="caption" sx={{ color: '#FFD700', fontWeight: 800 }}>
-                        DIAMOND HANDS BONUS: Reach 12 months to double your point weight!
-                    </Typography>
+        <Card sx={{ 
+            bgcolor: 'background.paper', 
+            border: `1px solid ${theme.palette.divider}`, 
+            borderRadius: 4, 
+            overflow: 'hidden',
+            backgroundImage: 'none',
+            boxShadow: isDark ? 'none' : '0 10px 40px rgba(0,0,0,0.04)'
+        }}>
+            <CardContent sx={{ p: { xs: 3, md: 5 } }}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems="flex-start" spacing={2} sx={{ mb: 4 }}>
+                    <Box>
+                        <Typography variant="h6" fontWeight="900" display="flex" alignItems="center" gap={1.5} sx={{ color: 'text.primary', letterSpacing: 1 }}>
+                            <BoltIcon sx={{ color: NEON_GREEN, fontSize: 28 }} /> PROOF OF DISCIPLINE (PoD)
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, mt: 0.5, display: 'block' }}>
+                            Your share = (Your DP / Total Network DP) × Reward Pool
+                        </Typography>
+                    </Box>
+                    <Chip 
+                        label="DYNAMIC CALCULATION" 
+                        size="small" 
+                        sx={{ 
+                            bgcolor: alpha(NEON_GREEN, 0.1), 
+                            color: NEON_GREEN, 
+                            fontWeight: 900, 
+                            fontSize: '0.65rem',
+                            letterSpacing: 1,
+                            borderRadius: 1.5
+                        }} 
+                    />
                 </Stack>
-            </Box>
-        </CardContent>
+
+                <Box sx={{ 
+                    p: 3, 
+                    bgcolor: isDark ? alpha(theme.palette.common.white, 0.03) : alpha(theme.palette.common.black, 0.02), 
+                    borderRadius: 3, 
+                    mb: 4, 
+                    border: `1px dashed ${theme.palette.divider}`,
+                    position: 'relative'
+                }}>
+                    <Typography variant="overline" sx={{ color: 'text.disabled', fontWeight: 900, display: 'block', textAlign: 'center', mb: 1, letterSpacing: 2 }}>
+                        Discipline Points (DP) Algorithm
+                    </Typography>
+                    <Typography 
+                        variant="h5" 
+                        textAlign="center" 
+                        fontWeight="900" 
+                        sx={{ 
+                            color: 'text.primary', 
+                            fontFamily: 'monospace', 
+                            letterSpacing: -0.5,
+                            fontSize: { xs: '1.1rem', sm: '1.5rem' }
+                        }}
+                    >
+                        {`DP = DEPOSIT × STREAK_MULT`}
+                    </Typography>
+                </Box>
+
+                <TableContainer component={Box} sx={{ bgcolor: 'transparent', boxShadow: 'none' }}>
+                    <Table size="small">
+                        <TableHead>
+                            <TableRow sx={{ bgcolor: isDark ? alpha(theme.palette.common.white, 0.02) : alpha(theme.palette.common.black, 0.01) }}>
+                                <TableCell sx={headerCellStyle}>Streak Duration</TableCell>
+                                <TableCell sx={headerCellStyle}>Multiplier</TableCell>
+                                <TableCell sx={headerCellStyle}>Rank</TableCell>
+                                <TableCell sx={headerCellStyle} align="right">Reward Weight</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {podLogic.map((row) => (
+                                <TableRow 
+                                    key={row.duration} 
+                                    sx={{ 
+                                        '&:hover': { bgcolor: alpha(NEON_GREEN, 0.04) }, 
+                                        transition: 'background-color 0.2s ease',
+                                        cursor: 'default'
+                                    }}
+                                >
+                                    <TableCell sx={{ color: 'text.primary', borderColor: theme.palette.divider, fontWeight: 800, py: 2 }}>
+                                        {row.duration}
+                                    </TableCell>
+                                    <TableCell sx={{ color: NEON_GREEN, borderColor: theme.palette.divider, fontWeight: 900, fontFamily: 'monospace', fontSize: '1rem' }}>
+                                        {row.multiplier}
+                                    </TableCell>
+                                    <TableCell sx={{ borderColor: theme.palette.divider }}>
+                                        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 900, textTransform: 'uppercase', letterSpacing: 1 }}>
+                                            {row.status}
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell sx={{ color: 'text.primary', borderColor: theme.palette.divider, fontWeight: 800 }} align="right">
+                                        {row.weight}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+
+                <Box sx={{ 
+                    mt: 4, p: 2.5, borderRadius: 3, 
+                    bgcolor: isDark ? alpha(GOLD_COLOR, 0.05) : alpha(GOLD_COLOR, 0.08), 
+                    border: `1px solid ${alpha(GOLD_COLOR, 0.2)}` 
+                }}>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                        <Box sx={{ 
+                            bgcolor: GOLD_COLOR, borderRadius: '50%', p: 0.5, display: 'flex', 
+                            boxShadow: `0 0 15px ${alpha(GOLD_COLOR, 0.4)}` 
+                        }}>
+                            <WorkspacePremiumIcon sx={{ color: '#000', fontSize: 18 }} />
+                        </Box>
+                        <Typography variant="caption" sx={{ color: isDark ? GOLD_COLOR : '#856404', fontWeight: 900, letterSpacing: 0.5, lineHeight: 1.4 }}>
+                            DIAMOND HANDS PROTOCOL: Users reaching 12 months or higher qualify for the Global Bonus Pool distribution derived from early exit penalties.
+                        </Typography>
+                    </Stack>
+                </Box>
+            </CardContent>
         </Card>
     );
 };

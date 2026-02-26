@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  Container, Typography, Box, Card, CardContent, Stack, Fade, Grow 
+  Container, Typography, Box, Card, CardContent, Stack, Fade, Grow, useTheme, alpha 
 } from '@mui/material';
 
 import GavelIcon from '@mui/icons-material/Gavel';
@@ -40,6 +40,8 @@ const ASSETS: Asset[] = [
 ];
 
 export default function DepositPage() {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const router = useRouter();
   const { address, isConnected } = useAccount();
   
@@ -83,7 +85,6 @@ export default function DepositPage() {
 
   const handleInitializeQuest = async () => {
       if (!isConnected) return;
-      
       if (amountNum < 10) return;
       if (amountNum > Number(walletBalance)) return;
 
@@ -92,19 +93,15 @@ export default function DepositPage() {
 
       try {
           const hash = await createQuestAction(monthlyAmount, selectedDuration.value);
-          
           if (hash) {
               setStatusStep(2);
               await runAutoDeposit(monthlyAmount); 
-
               setStatusStep(3);
-              
               await Promise.all([
                   refetchWalletBalance(),
                   refetchAOM3Balance(),
                   refreshHLBalance()
               ]);
-
               setTimeout(() => router.push('/overview'), 1500);
           }
       } catch (error) {
@@ -115,79 +112,88 @@ export default function DepositPage() {
   };
 
   return (
-    <Container maxWidth="md" sx={{ py: { xs: 4, md: 8 } }}>
-      
-      <Fade in timeout={800}>
-        <Box sx={{ mb: 6, textAlign: 'center' }}>
-          <Typography variant="overline" sx={{ color: NEON_GREEN, fontWeight: 900, letterSpacing: 3 }}>
-              STRATEGY INITIALIZATION
-          </Typography>
-          <Typography variant="h3" fontWeight="900" sx={{ letterSpacing: '-2px', textTransform: 'uppercase', color: 'white' }}>
-            Savings <Box component="span" sx={{ color: NEON_GREEN, textShadow: `0 0 20px ${NEON_GREEN}44` }}>Quest</Box>
-          </Typography>
-        </Box>
-      </Fade>
-
-      <Stack spacing={4}>
+    <Box sx={{ 
+        bgcolor: 'background.default', 
+        minHeight: '100vh', 
+        transition: 'background-color 0.3s ease',
+        color: 'text.primary'
+    }}>
+        <Container maxWidth="md" sx={{ py: { xs: 4, md: 8 } }}>
         
-        <Grow in timeout={1000}>
-          <Card sx={{ 
-            bgcolor: 'rgba(255,152,0,0.03)', 
-            border: `1px solid ${NEON_ORANGE}44`, 
-            borderRadius: 2
-          }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="subtitle2" fontWeight="900" color={NEON_ORANGE} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                <GavelIcon fontSize="small" /> AOM3 DISCIPLINE REGULATION
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#888', display: 'block', fontWeight: 500, lineHeight: 1.6 }}>
-                Principal is 100% safe. Streak Multipliers apply to active savers only. 
-                Savers must deposit within the monthly window to maintain discipline points.
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grow>
-
-        <Fade in timeout={1100}>
-          <Box>
-            <MissionCommitmentCard 
-              monthlyAmount={monthlyAmount}
-              setMonthlyAmount={setMonthlyAmount}
-              duration={durationValue}
-              setDuration={setDurationValue}
-              walletBalance={walletBalance}
-              isBalanceLoading={isBalanceLoading}
-              assetSymbol="USDC"
-            />
-          </Box>
+        <Fade in timeout={800}>
+            <Box sx={{ mb: 6, textAlign: 'center' }}>
+            <Typography variant="overline" sx={{ color: NEON_GREEN, fontWeight: 900, letterSpacing: 3 }}>
+                STRATEGY INITIALIZATION
+            </Typography>
+            <Typography variant="h2" fontWeight="900" sx={{ letterSpacing: '-2px', textTransform: 'uppercase', color: 'text.primary' }}>
+                Savings <Box component="span" sx={{ color: NEON_GREEN, textShadow: isDark ? `0 0 20px ${NEON_GREEN}44` : 'none' }}>Quest</Box>
+            </Typography>
+            </Box>
         </Fade>
 
-        <Fade in timeout={1200}>
-          <Box>
-            <MissionSummaryCard 
-              isYieldLoading={isYieldLoading}
-              estimatedMaxApy={estimatedMaxApy}
-              totalPrincipal={totalPrincipal}
-              estimatedInterest={estimatedInterest}
-              amountNum={amountNum}
-              walletBalance={Number(walletBalance)}
-              isDeploying={isDeploying}
-              isConfirming={isDeploying} 
-              onInitialize={handleInitializeQuest}
-              coinSymbol={'BTC'}
-              durationMultiplier={selectedDuration.multiplier}
-              durationMonths={selectedDuration.value}
-              statusStep={statusStep}
-            />
-          </Box>
-        </Fade>
+        <Stack spacing={4}>
+            
+            <Grow in timeout={1000}>
+            <Card sx={{ 
+                bgcolor: isDark ? alpha(NEON_ORANGE, 0.05) : alpha(NEON_ORANGE, 0.02), 
+                border: `1px solid ${alpha(NEON_ORANGE, 0.3)}`, 
+                borderRadius: 3,
+                backgroundImage: 'none',
+                boxShadow: 'none'
+            }}>
+                <CardContent sx={{ p: 3 }}>
+                <Typography variant="subtitle2" fontWeight="900" color={NEON_ORANGE} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                    <GavelIcon fontSize="small" /> AOM3 DISCIPLINE REGULATION
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary', display: 'block', fontWeight: 500, lineHeight: 1.6 }}>
+                    Principal is 100% safe. Streak Multipliers apply to active savers only. 
+                    Savers must deposit within the monthly window to maintain discipline points.
+                </Typography>
+                </CardContent>
+            </Card>
+            </Grow>
 
-        <Fade in timeout={1300}>
-          <Box>
-            <RewardEngineCard />
-          </Box>
-        </Fade>
-      </Stack>
-    </Container>
+            <Fade in timeout={1100}>
+            <Box>
+                <MissionCommitmentCard 
+                monthlyAmount={monthlyAmount}
+                setMonthlyAmount={setMonthlyAmount}
+                duration={durationValue}
+                setDuration={setDurationValue}
+                walletBalance={walletBalance}
+                isBalanceLoading={isBalanceLoading}
+                assetSymbol="USDC"
+                />
+            </Box>
+            </Fade>
+
+            <Fade in timeout={1200}>
+            <Box>
+                <MissionSummaryCard 
+                isYieldLoading={isYieldLoading}
+                estimatedMaxApy={estimatedMaxApy}
+                totalPrincipal={totalPrincipal}
+                estimatedInterest={estimatedInterest}
+                amountNum={amountNum}
+                walletBalance={Number(walletBalance)}
+                isDeploying={isDeploying}
+                isConfirming={isDeploying} 
+                onInitialize={handleInitializeQuest}
+                coinSymbol={'BTC'}
+                durationMultiplier={selectedDuration.multiplier}
+                durationMonths={selectedDuration.value}
+                statusStep={statusStep}
+                />
+            </Box>
+            </Fade>
+
+            <Fade in timeout={1300}>
+            <Box>
+                <RewardEngineCard />
+            </Box>
+            </Fade>
+        </Stack>
+        </Container>
+    </Box>
   );
 }
