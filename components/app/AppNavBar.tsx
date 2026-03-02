@@ -23,6 +23,7 @@ const NEON_GREEN = '#00E08F';
 const NAV_ITEMS = [
   { label: 'Overview', path: '/overview' },
   { label: 'Deposit',  path: '/deposit' },
+  { label: 'Top Users', path: '/top-users' },
   { label: 'Ranking',  path: '/ranking' },
 ];
 
