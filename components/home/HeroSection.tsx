@@ -13,8 +13,8 @@ const NEON_GREEN = '#00E08F';
 
 const LOGOS = [
   { name: 'Hyperliquid', url: 'https://s2.coinmarketcap.com/static/img/coins/200x200/32196.png' },
-  { name: 'Arbitrum', url: 'https://cryptologos.cc/logos/arbitrum-arb-logo.png' },
-  { name: 'USDC', url: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png' },
+  { name: 'Arbitrum', url: 'https://arbiscan.io/assets/arbitrum/images/svg/logos/chain-light.svg?v=26.2.2.0' },
+  { name: 'USDC', url: 'https://upload.wikimedia.org/wikipedia/commons/c/ca/USD_Coin_logo_%28cropped%29.png' },
 ];
 
 interface StatItemProps {
