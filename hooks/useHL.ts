@@ -8,6 +8,12 @@ import { useAccount, useWalletClient } from 'wagmi';
 import { privateKeyToAccount } from 'viem/accounts';
 import { getAddress, type Hex } from 'viem';
 
+interface HyperliquidSpotBalance {
+    coin: string;
+    total: string;
+    hold?: string;
+}
+
 const rawVaultAddress = process.env.NEXT_PUBLIC_HL_VAULT_ADDRESS;
 if (!rawVaultAddress) {
     throw new Error("NEXT_PUBLIC_HL_VAULT_ADDRESS is missing in your .env file");
@@ -104,10 +110,20 @@ export function useHL() {
             const targetUsd = parseFloat(amount);
             const agentWallet = privateKeyToAccount(agentData.privateKey as Hex);
 
+            const vData = await vaultDetails({ transport }, { 
+                vaultAddress: VAULT_ADDRESS as Hex,
+                user: address as Hex
+            });
+
+            const actualEquity = parseFloat(vData?.followerState?.vaultEquity || "0");
+            const withdrawAmount = Math.min(targetUsd, actualEquity);
+
+            if (withdrawAmount <= 0) throw new Error("No equity left in vault");
+
             await vaultTransfer({ transport, wallet: agentWallet }, { 
                 vaultAddress: VAULT_ADDRESS as Hex, 
                 isDeposit: false, 
-                usd: Math.floor(targetUsd * 1e6) 
+                usd: Math.floor(withdrawAmount * 1e6) 
             });
 
             await refreshBalance();
@@ -125,11 +141,34 @@ export function useHL() {
         
         try {
             setIsAutoInvesting(true);
+            const targetUsd = parseFloat(amount);
+            
+            let availableSpot = 0;
+            for (let i = 0; i < 5; i++) {
+                const spotState = await spotClearinghouseState({ transport }, { user: address as Hex });
+                const usdcBalance = parseFloat(
+                    spotState.balances.find((b: HyperliquidSpotBalance) => b.coin === 'USDC')?.total || "0"
+                );                
+                if (usdcBalance >= targetUsd * 0.9) {
+                    availableSpot = usdcBalance;
+                    break;
+                }
+                console.log(`Waiting for spot balance update... attempt ${i+1}`);
+                await new Promise(r => setTimeout(r, 2000));
+            }
+
+            const BRIDGE_FEE = 1.0;
+            const amountToBridge = Math.min(targetUsd, availableSpot - BRIDGE_FEE);
+
+            if (amountToBridge <= 0) {
+                throw new Error("Balance too low to cover the 1 USDC bridge fee");
+            }
+
             await withdraw3(
                 { transport, wallet: walletClient },
                 {
                     destination: address,
-                    amount: amount,
+                    amount: amountToBridge.toString(),
                 }
             );
 
