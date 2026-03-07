@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { 
     Container, Typography, Box, Card, CardContent, Stack, 
     Divider, useTheme, alpha 
@@ -41,9 +42,23 @@ export default function StrategyPage() {
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
 
+    const [show, setShow] = useState(false);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setShow(true), 100);
+        return () => clearTimeout(timer);
+    }, []);
+
     return (
         <Container maxWidth="lg" sx={{ py: { xs: 6, md: 10 } }}>
-            <Box mb={8} textAlign="center">
+            <Box 
+                mb={8} textAlign="center" 
+                sx={{ 
+                    opacity: show ? 1 : 0, 
+                    transform: show ? 'translateY(0)' : 'translateY(30px)', 
+                    transition: 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)' 
+                }}
+            >
                 <Typography variant="overline" sx={{ color: NEON_GREEN, fontWeight: 900, letterSpacing: 2 }}>
                     THE ENGINE BEHIND THE YIELD
                 </Typography>
@@ -55,7 +70,14 @@ export default function StrategyPage() {
                 </Typography>
             </Box>
 
-            <Box mb={10}>
+            <Box 
+                mb={10} 
+                sx={{ 
+                    opacity: show ? 1 : 0, 
+                    transform: show ? 'translateY(0)' : 'translateY(30px)', 
+                    transition: 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.2s' 
+                }}
+            >
                 <Typography variant="h5" fontWeight={900} mb={4} display="flex" alignItems="center" gap={1}>
                     <PrecisionManufacturingIcon sx={{ color: NEON_GREEN }} /> Visual Flow: The Yield Generation
                 </Typography>
@@ -89,7 +111,14 @@ export default function StrategyPage() {
                 </Stack>
             </Box>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 4, mb: 10 }}>
+            <Box 
+                sx={{ 
+                    display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 4, mb: 10,
+                    opacity: show ? 1 : 0, 
+                    transform: show ? 'translateY(0)' : 'translateY(30px)', 
+                    transition: 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.4s' 
+                }}
+            >
                 <Box>
                     <Card sx={{ height: '100%', borderRadius: 4, border: `1px solid ${alpha(NEON_GREEN, 0.3)}`, bgcolor: alpha(NEON_GREEN, 0.02) }}>
                         <CardContent sx={{ p: 4 }}>
@@ -143,46 +172,54 @@ export default function StrategyPage() {
                 </Box>
             </Box>
 
-            <Card sx={{ borderRadius: 4, bgcolor: isDark ? '#111' : '#f8f8f8', border: `1px solid ${theme.palette.divider}` }}>
-                <CardContent sx={{ p: { xs: 3, md: 5 } }}>
-                    <Typography variant="h5" fontWeight={900} mb={3} display="flex" alignItems="center" gap={1}>
-                        <FunctionsIcon sx={{ color: NEON_ORANGE }} /> The Mathematics & Game Theory
-                    </Typography>
-                    
-                    <Typography variant="body1" color="text.secondary" mb={4}>
-                        HLP&apos;s profit sharing is strictly <b>pro-rata</b> based on your deposit size relative to the entire vault. However, when you integrate this with the <b>AOM3 Protocol</b>, you unlock a powerful yield multiplier:
-                    </Typography>
-
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 4 }}>
-                        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 3, border: `1px solid ${theme.palette.divider}`, textAlign: 'center' }}>
-                            <Typography variant="caption" color="text.secondary" fontWeight={800} display="block" mb={2}>
-                                Standard Vault Share
-                            </Typography>
-                            <Typography sx={{ fontFamily: 'monospace', fontSize: { xs: '1rem', md: '1.2rem' }, fontWeight: 700, color: 'text.primary' }}>
-                                Share = User Deposit / Total Vault Equity
-                            </Typography>
-                        </Box>
-
-                        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 3, border: `1px solid ${alpha(NEON_GREEN, 0.3)}`, textAlign: 'center' }}>
-                            <Typography variant="caption" color={NEON_GREEN} fontWeight={800} display="block" mb={2}>
-                                AOM3 Boosted Return
-                            </Typography>
-                            <Typography sx={{ fontFamily: 'monospace', fontSize: { xs: '1rem', md: '1.2rem' }, fontWeight: 700, color: NEON_GREEN }}>
-                                Effective APY = Base HLP APY + Reward Shared (AOM3 Distribution)
-                            </Typography>
-                        </Box>
-                    </Box>
-
-                    <Box mt={4} p={3} borderRadius={3} bgcolor={alpha(NEON_ORANGE, 0.1)} border={`1px dashed ${alpha(NEON_ORANGE, 0.3)}`}>
-                        <Typography variant="body2" color="text.primary" fontWeight={600} display="flex" alignItems="flex-start" gap={1}>
-                            <TimelineIcon sx={{ color: NEON_ORANGE, mt: -0.2 }} />
-                            <span>
-                                <b>Why AOM3?</b> In standard DeFi, you only earn the base APY. AOM3 introduces <i>Game Theory</i> by charging a 10% penalty to users who break their savings discipline (early exits). These penalties are redistributed as the &quot;Multiplier&quot; to users who maintain their streak, allowing your <i>Effective APY</i> to sustainably outperform standard market rates.
-                            </span>
+            <Box
+                sx={{ 
+                    opacity: show ? 1 : 0, 
+                    transform: show ? 'translateY(0)' : 'translateY(30px)', 
+                    transition: 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.6s' 
+                }}
+            >
+                <Card sx={{ borderRadius: 4, bgcolor: isDark ? '#111' : '#f8f8f8', border: `1px solid ${theme.palette.divider}` }}>
+                    <CardContent sx={{ p: { xs: 3, md: 5 } }}>
+                        <Typography variant="h5" fontWeight={900} mb={3} display="flex" alignItems="center" gap={1}>
+                            <FunctionsIcon sx={{ color: NEON_ORANGE }} /> The Mathematics & Game Theory
                         </Typography>
-                    </Box>
-                </CardContent>
-            </Card>
+                        
+                        <Typography variant="body1" color="text.secondary" mb={4}>
+                            HLP&apos;s profit sharing is strictly <b>pro-rata</b> based on your deposit size relative to the entire vault. However, when you integrate this with the <b>AOM3 Protocol</b>, you unlock a powerful yield multiplier:
+                        </Typography>
+
+                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 4 }}>
+                            <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 3, border: `1px solid ${theme.palette.divider}`, textAlign: 'center' }}>
+                                <Typography variant="caption" color="text.secondary" fontWeight={800} display="block" mb={2}>
+                                    Standard Vault Share
+                                </Typography>
+                                <Typography sx={{ fontFamily: 'monospace', fontSize: { xs: '1rem', md: '1.2rem' }, fontWeight: 700, color: 'text.primary' }}>
+                                    Share = User Deposit / Total Vault Equity
+                                </Typography>
+                            </Box>
+
+                            <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 3, border: `1px solid ${alpha(NEON_GREEN, 0.3)}`, textAlign: 'center' }}>
+                                <Typography variant="caption" color={NEON_GREEN} fontWeight={800} display="block" mb={2}>
+                                    AOM3 Boosted Return
+                                </Typography>
+                                <Typography sx={{ fontFamily: 'monospace', fontSize: { xs: '1rem', md: '1.2rem' }, fontWeight: 700, color: NEON_GREEN }}>
+                                    Effective APY = Base HLP APY + Reward Shared (AOM3 Distribution)
+                                </Typography>
+                            </Box>
+                        </Box>
+
+                        <Box mt={4} p={3} borderRadius={3} bgcolor={alpha(NEON_ORANGE, 0.1)} border={`1px dashed ${alpha(NEON_ORANGE, 0.3)}`}>
+                            <Typography variant="body2" color="text.primary" fontWeight={600} display="flex" alignItems="flex-start" gap={1}>
+                                <TimelineIcon sx={{ color: NEON_ORANGE, mt: -0.2 }} />
+                                <span>
+                                    <b>Why AOM3?</b> In standard DeFi, you only earn the base APY. AOM3 introduces <i>Game Theory</i> by charging a 10% penalty to users who break their savings discipline (early exits). These penalties are redistributed as the &quot;Multiplier&quot; to users who maintain their streak, allowing your <i>Effective APY</i> to sustainably outperform standard market rates.
+                                </span>
+                            </Typography>
+                        </Box>
+                    </CardContent>
+                </Card>
+            </Box>
 
         </Container>
     );
