@@ -14,9 +14,9 @@ interface HyperliquidSpotBalance {
     hold?: string;
 }
 
-const rawVaultAddress = process.env.NEXT_PUBLIC_HL_VAULT_ADDRESS;
+const rawVaultAddress = process.env.NEXT_PUBLIC_HL_TEST_VAULT_ADDRESS;
 if (!rawVaultAddress) {
-    throw new Error("NEXT_PUBLIC_HL_VAULT_ADDRESS is missing in your .env file");
+    throw new Error("NEXT_PUBLIC_HL_TEST_VAULT_ADDRESS is missing in your .env file");
 }
 export const VAULT_ADDRESS = getAddress(rawVaultAddress as Hex);
 

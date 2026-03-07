@@ -10,9 +10,15 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import YieldChart from '../chart/YieldChart';
 import { CheckCircleIcon } from 'lucide-react';
 import { useRealYield } from '@/hooks/useRealYield';
+import { getAddress, Hex } from 'viem';
 
 const NEON_GREEN = '#00E08F';
-const HLP_ADDRESS = "0x49d05977597b22e3c73d654c351adde9d9920e18";
+
+const rawVaultAddress = process.env.NEXT_PUBLIC_HL_TEST_VAULT_ADDRESS;
+if (!rawVaultAddress) {
+    throw new Error("NEXT_PUBLIC_HL_TEST_VAULT_ADDRESS is missing in your .env file");
+}
+export const VAULT_ADDRESS = getAddress(rawVaultAddress as Hex);
 
 interface MissionSummaryCardProps {
     isYieldLoading: boolean;
@@ -43,7 +49,7 @@ export const MissionSummaryCard: React.FC<MissionSummaryCardProps> = ({
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
 
-    const { apy: fetchedApy, loading: isApyLoading } = useRealYield(HLP_ADDRESS);
+    const { apy: fetchedApy, loading: isApyLoading } = useRealYield(VAULT_ADDRESS);
     
     const calculation = useMemo(() => {
         const apy = fetchedApy > 0 ? fetchedApy : (Number(initialApy) || 0);

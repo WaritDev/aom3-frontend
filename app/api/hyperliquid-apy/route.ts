@@ -1,15 +1,19 @@
 import { NextResponse } from 'next/server';
 import * as hl from "@nktkas/hyperliquid";
-import { type Hex } from 'viem';
+import { getAddress, type Hex } from 'viem';
 
-const HLP_ADDRESS = "0xdfc24b077bc1425ad1dea75bcb6f8158e10df303";
+const rawVaultAddress = process.env.NEXT_PUBLIC_HL_HLP_VAULT_ADDRESS;
+if (!rawVaultAddress) {
+    throw new Error("NEXT_PUBLIC_HL_HLP_VAULT_ADDRESS is missing in your .env file");
+}
+export const VAULT_ADDRESS = getAddress(rawVaultAddress as Hex);
 const transport = new hl.HttpTransport();
 const client = new hl.InfoClient({ transport });
 
 export async function POST(req: Request) {
     try {
         const body = await req.json().catch(() => ({}));
-        const vaultAddress = body.vaultAddress || HLP_ADDRESS;
+        const vaultAddress = body.vaultAddress || VAULT_ADDRESS;
 
         const vaultData = await client.vaultDetails({ vaultAddress: vaultAddress as Hex });
         const allTime = vaultData?.portfolio?.find(item => item[0] === 'allTime');
