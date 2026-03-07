@@ -26,6 +26,7 @@ const NAV_ITEMS = [
   { label: 'Simulation',  path: '/simulation' },
   { label: 'Top Users', path: '/top-users' },
   { label: 'Ranking',  path: '/ranking' },
+  { label: 'strategy',  path: '/strategy' },
 ];
 
 const AppNavbar = () => {
