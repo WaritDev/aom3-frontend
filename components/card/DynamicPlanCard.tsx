@@ -28,12 +28,12 @@ interface StatusModalProps {
     open: boolean;
     status: 'processing' | 'success' | 'error';
     step: number;
-    totalSteps?: number;
+    totalSteps: number;
     message: string;
     onClose: () => void;
 }
 
-const TransactionStatusModal = ({ open, status, step, message, onClose }: StatusModalProps) => {
+const TransactionStatusModal = ({ open, status, step, totalSteps, message, onClose }: StatusModalProps) => {
     const theme = useTheme();
     return (
         <Dialog 
@@ -55,7 +55,7 @@ const TransactionStatusModal = ({ open, status, step, message, onClose }: Status
                         <Box sx={{ position: 'relative', display: 'inline-flex' }}>
                             <CircularProgress size={80} thickness={2} sx={{ color: NEON_GREEN }} />
                             <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-                                <Typography variant="h6" sx={{ fontWeight: 900, color: NEON_GREEN, lineHeight: 1 }}>{step}/3</Typography>
+                                <Typography variant="h6" sx={{ fontWeight: 900, color: NEON_GREEN, lineHeight: 1 }}>{step}/{totalSteps}</Typography>
                                 <Typography variant="caption" sx={{ color: NEON_GREEN, fontWeight: 700, fontSize: 10 }}>STEP</Typography>
                             </Box>
                         </Box>
@@ -112,7 +112,14 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
         remainingLockSeconds, isWithdrawLocked 
     } = useAOM3();
 
-    const { runAutoDeposit, runAutoWithdraw, withdrawToWallet } = useHL();
+    const { 
+        runAutoDeposit, 
+        runAutoWithdraw, 
+        withdrawToWallet, 
+        withdrawAllYield, 
+        withdrawYieldToDistributor, 
+        vaultPnl 
+    } = useHL();
 
     useEffect(() => {
         setCurrentTime(Math.floor(Date.now() / 1000));
@@ -133,7 +140,8 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
         if (remainingLockSeconds <= 0) return null;
         const h = Math.floor(remainingLockSeconds / 3600);
         const m = Math.floor((remainingLockSeconds % 3600) / 60);
-        return `${h}h ${m}m remaining`;
+        const s = remainingLockSeconds % 60;
+        return `${h}h ${m}m ${s}s remaining`;
     }, [remainingLockSeconds]);
 
     const coolingStatus = useMemo(() => {
@@ -172,22 +180,24 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
     const handleConfirmAction = async () => {
         setModalConfig(prev => ({ ...prev, open: false }));
         setIsProcessing(true);
-        const totalSteps = modalConfig.type === 'deposit' ? 2 : 3;
+        
+        const hasYield = parseFloat(vaultPnl) > 0.5;
+        const currentTotalSteps = modalConfig.type === 'deposit' ? 2 : (hasYield ? 4 : 3);
         const amountToReturn = isMatured ? totalDepNum : totalDepNum * 0.9;
         const contribution = isMatured ? 0 : totalDepNum * 0.1;
 
         setStatusModal({
-            open: true, status: 'processing', step: 1, totalSteps: totalSteps,
+            open: true, status: 'processing', step: 1, totalSteps: currentTotalSteps,
             message: modalConfig.type === 'deposit' 
-                ? `Step 1/${totalSteps}: Signing Commitment on Arbitrum...` 
-                : `Step 1/${totalSteps}: Recovering $${totalDepNum} from HL Vault...`
+                ? `Step 1/${currentTotalSteps}: Signing Commitment on Arbitrum...` 
+                : `Step 1/${currentTotalSteps}: Recovering Principal ($${totalDepNum}) from HL Vault...`
         });
 
         try {
             if (modalConfig.type === 'deposit') {
                 const hash = await depositAction(monthlyAmtStr, Number(duration)); 
                 if (hash) {
-                    setStatusModal(prev => ({ ...prev, step: 2, message: `Step 2/${totalSteps}: Deploying to HL Yield Strategy...` }));
+                    setStatusModal(prev => ({ ...prev, step: 2, message: `Step 2/${currentTotalSteps}: Deploying to HL Yield Strategy...` }));
                     await runAutoDeposit(monthlyAmtStr);
                 }
             } else {                
@@ -195,30 +205,50 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                     await runAutoWithdraw(totalDepNum.toString());
                 } catch (innerErr: unknown) {
                     const error = innerErr as Error;
-                    const msg = error.message?.toLowerCase() || "";
-                    if (msg.includes("lock") || msg.includes("period") || msg.includes("exit")) {
-                        throw new Error("HL_VAULT_LOCKED: ยอดเงินติด Lock 4 วันของ HL Vault กรุณาลองใหม่ภายหลัง");
+                    if (error.message?.toLowerCase().includes("lock")) {
+                        throw new Error("HL_VAULT_LOCKED: Your principal is currently in the 4-day lock period.");
                     }
                     throw innerErr;
                 }
-                setStatusModal(prev => ({ ...prev, step: 2, message: `Step 2/${totalSteps}: Bridging funds to your wallet (Sign Required)...` }));
-                await new Promise(r => setTimeout(r, 2000));
+
+                setStatusModal(prev => ({ ...prev, step: 2, message: `Step 2/${currentTotalSteps}: Bridging funds back to your wallet...` }));
                 await withdrawToWallet(totalDepNum.toString());
+
+                if (hasYield) {
+                    setStatusModal(prev => ({ 
+                        ...prev, step: 3, 
+                        message: isMatured 
+                            ? `Step 3/${currentTotalSteps}: Recovering Profit ($${parseFloat(vaultPnl).toFixed(2)}) to your wallet...` 
+                            : `Step 3/${currentTotalSteps}: Distributing Yield to Savers Reward Pool...` 
+                    }));
+                    if (isMatured) {
+                        await withdrawAllYield();
+                    } else {
+                        await withdrawYieldToDistributor();
+                    }
+                }
+
+                const finalStepNum = currentTotalSteps;
                 setStatusModal(prev => ({ 
-                    ...prev, step: 3, 
-                    message: isMatured ? `Step 3/${totalSteps}: Finalizing full redemption on Arbitrum...` : `Step 3/${totalSteps}: Processing Early Exit (10% contribution to Reward Pool)...` 
+                    ...prev, step: finalStepNum, 
+                    message: `Final Step: Recording On-chain Settlement on Arbitrum...` 
                 }));
                 await withdrawAction(Number(questId));
             }
+
             setStatusModal(prev => ({
                 ...prev, status: 'success', 
-                message: modalConfig.type === 'deposit' ? 'Quest Updated! Your funds are earning yield.' : isMatured ? `Redeemed $${amountToReturn.toLocaleString()} successfully!` : `Exit Complete! $${amountToReturn.toLocaleString()} returned. You contributed $${contribution.toLocaleString()} to the Savers Reward Pool. 🤝`
+                message: modalConfig.type === 'deposit' 
+                    ? 'Quest Updated! Your funds are earning yield.' 
+                    : isMatured 
+                        ? `Redeemed $${amountToReturn.toLocaleString()} successfully! Yield has been returned to your wallet.` 
+                        : `Exit Complete! $${amountToReturn.toLocaleString()} returned. You contributed $${contribution.toLocaleString()} + all yield to the Reward Pool. 🤝`
             }));
             await refetch();
             onActionSuccess?.();
         } catch (outerErr: unknown) {
-            const errorMessage = outerErr instanceof Error ? outerErr.message : "Blockchain transaction failed.";
-            setStatusModal(prev => ({ ...prev, status: 'error', message: errorMessage }));
+            const error = outerErr as Error;
+            setStatusModal(prev => ({ ...prev, status: 'error', message: error.message || "Transaction failed." }));
         } finally { setIsProcessing(false); }
     };
 
@@ -289,19 +319,21 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                             </Box>
                             
                             <Stack direction="row" spacing={1.5} justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
-                                <Tooltip title={isWithdrawLocked ? `Security Lock: ${lockTimeLabel}` : (isMatured ? "Redeem full principal" : "Exit and pay discipline fee")}>
-                                    <Button 
-                                        variant="outlined" disabled={isWithdrawLocked || isProcessing}
-                                        onClick={() => setModalConfig({ open: true, type: 'withdraw' })}
-                                        sx={{ 
-                                            borderRadius: 2, px: 3, 
-                                            borderColor: isWithdrawLocked ? theme.palette.divider : (isMatured ? NEON_GREEN : NEON_RED), 
-                                            color: isWithdrawLocked ? 'text.disabled' : (isMatured ? NEON_GREEN : NEON_RED), 
-                                            fontWeight: 800 
-                                        }}
-                                    >
-                                        {isWithdrawLocked ? "LOCKED" : (isMatured ? "REDEEM" : "EXIT QUEST")}
-                                    </Button>
+                                <Tooltip title={isWithdrawLocked ? `Security Lock: ${lockTimeLabel}` : (isMatured ? "Redeem full principal + yield" : "Exit and forfeit all yield + 10% principal fee")}>
+                                    <Box component="span">
+                                        <Button 
+                                            variant="outlined" disabled={isWithdrawLocked || isProcessing}
+                                            onClick={() => setModalConfig({ open: true, type: 'withdraw' })}
+                                            sx={{ 
+                                                borderRadius: 2, px: 3, 
+                                                borderColor: isWithdrawLocked ? theme.palette.divider : (isMatured ? NEON_GREEN : NEON_RED), 
+                                                color: isWithdrawLocked ? 'text.disabled' : (isMatured ? NEON_GREEN : NEON_RED), 
+                                                fontWeight: 800 
+                                            }}
+                                        >
+                                            {isWithdrawLocked ? "LOCKED" : (isMatured ? "REDEEM" : "EXIT QUEST")}
+                                        </Button>
+                                    </Box>
                                 </Tooltip>
                                 
                                 {!isMatured && (
@@ -333,7 +365,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
             />
 
             <TransactionStatusModal 
-                open={statusModal.open} status={statusModal.status} step={statusModal.step} message={statusModal.message}
+                open={statusModal.open} status={statusModal.status} step={statusModal.step} totalSteps={statusModal.totalSteps} message={statusModal.message}
                 onClose={() => setStatusModal(prev => ({ ...prev, open: false }))}
             />
         </>

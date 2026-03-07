@@ -7,18 +7,19 @@ import { clearinghouseState, spotClearinghouseState, vaultDetails } from "@nktka
 import { useAccount, useWalletClient } from 'wagmi';
 import { privateKeyToAccount } from 'viem/accounts';
 import { getAddress, type Hex } from 'viem';
-
-interface HyperliquidSpotBalance {
-    coin: string;
-    total: string;
-    hold?: string;
-}
+import { 
+    AOM3_REWARD_DISTRIBUTOR_ADDRESS,
+} from '../constants/contracts';
 
 const rawVaultAddress = process.env.NEXT_PUBLIC_HL_TEST_VAULT_ADDRESS;
+const rawDistributorAddress = AOM3_REWARD_DISTRIBUTOR_ADDRESS;
+
 if (!rawVaultAddress) {
     throw new Error("NEXT_PUBLIC_HL_TEST_VAULT_ADDRESS is missing in your .env file");
 }
+
 export const VAULT_ADDRESS = getAddress(rawVaultAddress as Hex);
+export const DISTRIBUTOR_ADDRESS = rawDistributorAddress ? getAddress(rawDistributorAddress as Hex) : undefined;
 
 export function useHL() {
     const { address } = useAccount();
@@ -39,6 +40,7 @@ export function useHL() {
             const perpState = await clearinghouseState({ transport }, { user: address as Hex });
             const perpUsd = perpState.marginSummary.accountValue;
             setHlBalance((parseFloat(usdcBalance) + parseFloat(perpUsd)).toString());
+            
             const vData = await vaultDetails({ transport }, { 
                 vaultAddress: VAULT_ADDRESS as Hex,
                 user: address as Hex
@@ -65,122 +67,133 @@ export function useHL() {
 
     const hasAgent = !!getStoredAgent();
 
-    const runAutoDeposit = useCallback(async (amount: string) => {
-        const agentData = getStoredAgent();
-        if (!agentData || !address) return;
+    const bridgeToExternal = useCallback(async (amount: string, destination: string) => {
+        if (!walletClient || !address) throw new Error("Wallet not connected");
         
+        const targetUsd = parseFloat(amount);
+        let availableSpot = 0;
+
+        for (let i = 0; i < 5; i++) {
+            const spotState = await spotClearinghouseState({ transport }, { user: address as Hex });
+            availableSpot = parseFloat(spotState.balances.find(b => b.coin === 'USDC')?.total || "0");                
+            if (availableSpot >= targetUsd * 0.98) break;
+            await new Promise(r => setTimeout(r, 2000));
+        }
+
+        const BRIDGE_FEE = 1.0;
+        const amountToBridge = Math.min(targetUsd, availableSpot - BRIDGE_FEE);
+
+        if (amountToBridge <= 0) throw new Error("Insufficient balance for bridge fee");
+
+        return await withdraw3(
+            { transport, wallet: walletClient },
+            {
+                destination: destination as Hex,
+                amount: amountToBridge.toFixed(6),
+            }
+        );
+    }, [address, walletClient, transport]);
+
+    const withdrawAllYield = useCallback(async () => {
+        const pnl = parseFloat(vaultPnl);
+        if (pnl <= 0.1) throw new Error("Yield too small to withdraw");
+
+        const agentData = getStoredAgent();
+        if (!agentData || !address) throw new Error("Agent not ready");
+
         try {
             setIsAutoInvesting(true);
-            const targetUsd = parseFloat(amount);
-            
-            let ready = false;
-            for (let i = 0; i < 5; i++) {
-                const currentBalance = await refreshBalance();
-                if (parseFloat(currentBalance) >= targetUsd) {
-                    ready = true;
-                    break;
-                }
-                console.log(`Waiting for bridge... attempt ${i+1}`);
-                await new Promise(r => setTimeout(r, 10000));
-            }
-
-            if (!ready) throw new Error("Bridge timeout: Funds haven't arrived at HL yet");
-
             const agentWallet = privateKeyToAccount(agentData.privateKey as Hex);
+
             await vaultTransfer({ transport, wallet: agentWallet }, { 
                 vaultAddress: VAULT_ADDRESS as Hex, 
-                isDeposit: true, 
-                usd: Math.floor(targetUsd * 1e6) 
+                isDeposit: false, 
+                usd: Math.floor(pnl * 1e6) 
             });
 
+            await bridgeToExternal(pnl.toString(), address);
+            
+            await refreshBalance();
             return true;
-        } catch (e) {
-            throw e;
         } finally {
             setIsAutoInvesting(false);
         }
+    }, [vaultPnl, address, getStoredAgent, transport, bridgeToExternal, refreshBalance]);
+
+    const withdrawYieldToDistributor = useCallback(async (amount?: string) => {
+        if (!DISTRIBUTOR_ADDRESS) throw new Error("Distributor address not configured");
+        
+        const targetAmount = amount ? parseFloat(amount) : parseFloat(vaultPnl);
+        if (targetAmount <= 0) return false;
+
+        const agentData = getStoredAgent();
+        if (!agentData || !address) throw new Error("Agent not ready");
+
+        try {
+            setIsAutoInvesting(true);
+            const agentWallet = privateKeyToAccount(agentData.privateKey as Hex);
+
+            await vaultTransfer({ transport, wallet: agentWallet }, { 
+                vaultAddress: VAULT_ADDRESS as Hex, 
+                isDeposit: false, 
+                usd: Math.floor(targetAmount * 1e6) 
+            });
+
+            await bridgeToExternal(targetAmount.toString(), DISTRIBUTOR_ADDRESS);
+            
+            await refreshBalance();
+            return true;
+        } finally {
+            setIsAutoInvesting(false);
+        }
+    }, [vaultPnl, address, getStoredAgent, transport, bridgeToExternal, refreshBalance]);
+
+    const runAutoDeposit = useCallback(async (amount: string) => {
+        const agentData = getStoredAgent();
+        if (!agentData || !address) return;
+        try {
+            setIsAutoInvesting(true);
+            const targetUsd = parseFloat(amount);
+            let ready = false;
+            for (let i = 0; i < 5; i++) {
+                const currentBalance = await refreshBalance();
+                if (parseFloat(currentBalance) >= targetUsd) { ready = true; break; }
+                await new Promise(r => setTimeout(r, 10000));
+            }
+            if (!ready) throw new Error("Bridge timeout");
+            const agentWallet = privateKeyToAccount(agentData.privateKey as Hex);
+            await vaultTransfer({ transport, wallet: agentWallet }, { vaultAddress: VAULT_ADDRESS as Hex, isDeposit: true, usd: Math.floor(targetUsd * 1e6) });
+            return true;
+        } finally { setIsAutoInvesting(false); }
     }, [address, refreshBalance, transport, getStoredAgent]);
 
     const runAutoWithdraw = useCallback(async (amount: string) => {
         const agentData = getStoredAgent();
         if (!agentData || !address) return;
-        
         try {
             setIsAutoInvesting(true);
             const targetUsd = parseFloat(amount);
             const agentWallet = privateKeyToAccount(agentData.privateKey as Hex);
-
-            const vData = await vaultDetails({ transport }, { 
-                vaultAddress: VAULT_ADDRESS as Hex,
-                user: address as Hex
-            });
-
+            const vData = await vaultDetails({ transport }, { vaultAddress: VAULT_ADDRESS as Hex, user: address as Hex });
             const actualEquity = parseFloat(vData?.followerState?.vaultEquity || "0");
             const withdrawAmount = Math.min(targetUsd, actualEquity);
-
-            if (withdrawAmount <= 0) throw new Error("No equity left in vault");
-
-            await vaultTransfer({ transport, wallet: agentWallet }, { 
-                vaultAddress: VAULT_ADDRESS as Hex, 
-                isDeposit: false, 
-                usd: Math.floor(withdrawAmount * 1e6) 
-            });
-
+            if (withdrawAmount <= 0) throw new Error("No equity left");
+            await vaultTransfer({ transport, wallet: agentWallet }, { vaultAddress: VAULT_ADDRESS as Hex, isDeposit: false, usd: Math.floor(withdrawAmount * 1e6) });
             await refreshBalance();
             return true;
-        } catch (e) {
-            console.error("HL Withdraw Error:", e);
-            throw e;
-        } finally {
-            setIsAutoInvesting(false);
-        }
+        } finally { setIsAutoInvesting(false); }
     }, [address, refreshBalance, transport, getStoredAgent]);
 
     const withdrawToWallet = useCallback(async (amount: string) => {
-        if (!walletClient || !address) throw new Error("Wallet not connected");
-        
         try {
             setIsAutoInvesting(true);
-            const targetUsd = parseFloat(amount);
-            
-            let availableSpot = 0;
-            for (let i = 0; i < 5; i++) {
-                const spotState = await spotClearinghouseState({ transport }, { user: address as Hex });
-                const usdcBalance = parseFloat(
-                    spotState.balances.find((b: HyperliquidSpotBalance) => b.coin === 'USDC')?.total || "0"
-                );                
-                if (usdcBalance >= targetUsd * 0.9) {
-                    availableSpot = usdcBalance;
-                    break;
-                }
-                console.log(`Waiting for spot balance update... attempt ${i+1}`);
-                await new Promise(r => setTimeout(r, 2000));
-            }
-
-            const BRIDGE_FEE = 1.0;
-            const amountToBridge = Math.min(targetUsd, availableSpot - BRIDGE_FEE);
-
-            if (amountToBridge <= 0) {
-                throw new Error("Balance too low to cover the 1 USDC bridge fee");
-            }
-
-            await withdraw3(
-                { transport, wallet: walletClient },
-                {
-                    destination: address,
-                    amount: amountToBridge.toString(),
-                }
-            );
-
+            await bridgeToExternal(amount, address!);
             await refreshBalance();
             return true;
-        } catch (e) {
-            console.error("Bridge back error:", e);
-            throw e;
         } finally {
             setIsAutoInvesting(false);
         }
-    }, [address, walletClient, transport, refreshBalance]);
+    }, [address, bridgeToExternal, refreshBalance]);
 
     useEffect(() => {
         if (address) {
@@ -192,6 +205,9 @@ export function useHL() {
 
     return { 
         hlBalance, vaultEquity, vaultApr, vaultPnl,
-        isAutoInvesting, hasAgent, runAutoDeposit, runAutoWithdraw, withdrawToWallet, refreshBalance
+        isAutoInvesting, hasAgent, 
+        runAutoDeposit, runAutoWithdraw, withdrawToWallet, 
+        withdrawAllYield, withdrawYieldToDistributor,
+        refreshBalance
     };
 }
