@@ -17,7 +17,7 @@ import SavingsIcon from '@mui/icons-material/Savings';
 import SensorsIcon from '@mui/icons-material/Sensors';
 import { CalendarMonth } from '@mui/icons-material';
 
-const AnimatedNumber = ({ value, prefix = "", suffix = "" }: { value: number, prefix?: string, suffix?: string }) => {
+const AnimatedNumber = ({ value, prefix = "", suffix = "", decimals = 2 }: { value: number, prefix?: string, suffix?: string, decimals?: number }) => {
     const [displayValue, setDisplayValue] = useState(0);
     
     useEffect(() => {
@@ -25,7 +25,7 @@ const AnimatedNumber = ({ value, prefix = "", suffix = "" }: { value: number, pr
         const end = value;
         const duration = 1000;
         const incrementTime = 30;
-        const steps = Math.floor(duration / incrementTime);
+        const steps = Math.max(Math.floor(duration / incrementTime), 1);
         const increment = end / steps;
 
         const timer = setInterval(() => {
@@ -41,7 +41,7 @@ const AnimatedNumber = ({ value, prefix = "", suffix = "" }: { value: number, pr
         return () => clearInterval(timer);
     }, [value]);
 
-    return <span>{prefix}{displayValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{suffix}</span>;
+    return <span>{prefix}{displayValue.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}{suffix}</span>;
 };
 
 const NEON_GREEN = '#00E08F';
@@ -265,7 +265,7 @@ export default function SimulationPage() {
                                         <Skeleton height={40} width="50%" />
                                     ) : (
                                         <Typography variant="h4" fontWeight={900} color={NEON_ORANGE}>
-                                            <AnimatedNumber value={actualMonthsSimulated} suffix=" Months" />
+                                            <AnimatedNumber value={actualMonthsSimulated} suffix=" Months" decimals={0} />
                                         </Typography>
                                     )}
                                     <Typography variant="caption" color="text.secondary">
@@ -278,7 +278,7 @@ export default function SimulationPage() {
                                         ACTUAL PROJECTED PROFIT
                                     </Typography>
                                     <Typography variant="h3" fontWeight={900} color={NEON_GREEN}>
-                                        <AnimatedNumber value={Math.abs(totalProfit)} prefix={totalProfit >= 0 ? '+$' : '-$'} />
+                                        <AnimatedNumber value={Math.abs(totalProfit)} prefix={totalProfit >= 0 ? '+$' : '-$'} decimals={2} />
                                     </Typography>
                                     <Typography variant="body2" color="text.secondary" fontWeight={600} mt={1}>
                                         Final Balance: ${finalData.AOM3Balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}
