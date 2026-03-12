@@ -171,6 +171,23 @@ export function useAOM3() {
         } catch (err: unknown) { console.error(err); throw err; }
     }, [address, publicClient, walletClient, signPermitForBridge, writeContractAsync, refetchBalance, refetchRanking]);
 
+    const syncQuestAction = useCallback(async (questId: number, monthlyAmount: string) => {
+        if (!publicClient || !address || !walletClient) return;
+        const deadline = BigInt(Math.floor(Date.now() / 1000) + 7200);
+        try {
+            const { v, r, s } = await signPermitForBridge(monthlyAmount, deadline);
+            const hash = await writeContractAsync({
+                address: AOM3_VAULT_ADDRESS,
+                abi: AOM3_VAULT_ABI as Abi,
+                functionName: 'depositWithPermit', 
+                args: [BigInt(questId), deadline, v, r, s],
+            });
+            await publicClient.waitForTransactionReceipt({ hash });
+            await Promise.all([refetchBalance(), refetchRanking()]);
+            return hash;
+        } catch (err: unknown) { console.error(err); throw err; }
+    }, [address, publicClient, walletClient, signPermitForBridge, writeContractAsync, refetchBalance, refetchRanking]);
+
     const claimRewardAction = useCallback(async (questId: number) => {
         const hash = await writeContractAsync({
             address: AOM3_REWARD_DISTRIBUTOR_ADDRESS,
@@ -229,6 +246,7 @@ export function useAOM3() {
 
     return { 
         createQuestAction, 
+        syncQuestAction,
         withdrawAction,
         claimRewardAction,
         nextQuestId: nextQuestId ? Number(nextQuestId) : 0,
