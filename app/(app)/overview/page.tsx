@@ -12,7 +12,6 @@ import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
-import PaymentsIcon from '@mui/icons-material/Payments';
 
 import { useAOM3 } from '@/hooks/useAOM3';
 import { useHL } from '@/hooks/useHL'; 
@@ -37,9 +36,7 @@ type QuestResult = readonly [
 
 export default function OverviewPage() {
     const { address } = useAccount();
-    const [isClaiming, setIsClaiming] = useState(false);
-    const [isWithdrawingYield, setIsWithdrawingYield] = useState(false);
-    
+    const [isClaiming, setIsClaiming] = useState(false);    
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     
     const theme = useTheme();
@@ -53,7 +50,6 @@ export default function OverviewPage() {
     const { 
         hlBalance, vaultEquity, vaultApr, vaultPnl,
         isAutoInvesting, refreshBalance: refetchHL,
-        withdrawAllYield
     } = useHL();
 
     const questIds = useMemo(() => 
@@ -121,19 +117,6 @@ export default function OverviewPage() {
             await handleActionSuccess();
         } finally {
             setIsClaiming(false);
-        }
-    };
-
-    const handleWithdrawYield = async () => {
-        if (parseFloat(vaultPnl) <= 1.0) return;
-        setIsWithdrawingYield(true);
-        try {
-            await withdrawAllYield();
-            await handleActionSuccess();
-        } catch (e: unknown) {
-            console.error("Withdraw Yield Error:", e);
-        } finally {
-            setIsWithdrawingYield(false);
         }
     };
 
@@ -225,25 +208,6 @@ export default function OverviewPage() {
                                                 </Typography>
                                             </Stack>
                                         </Box>
-
-                                        <Tooltip title={parseFloat(vaultPnl) > 1.0 ? "Withdraw yield back to Arbitrum" : "Minimum profit to withdraw is $1.00"}>
-                                            <Button 
-                                                variant="outlined"
-                                                onClick={handleWithdrawYield}
-                                                disabled={parseFloat(vaultPnl) <= 1.0 || isWithdrawingYield || isAutoInvesting}
-                                                startIcon={isWithdrawingYield ? <CircularProgress size={16} /> : <PaymentsIcon />}
-                                                sx={{ 
-                                                    mt: { xs: 2, sm: 0 },
-                                                    borderRadius: 2, 
-                                                    fontWeight: 900,
-                                                    borderColor: NEON_GREEN,
-                                                    color: NEON_GREEN,
-                                                    '&:hover': { borderColor: '#fff', bgcolor: alpha(NEON_GREEN, 0.1) }
-                                                }}
-                                            >
-                                                {isWithdrawingYield ? "PROCESSING..." : "WITHDRAW YIELD"}
-                                            </Button>
-                                        </Tooltip>
                                     </Stack>
                                 </Box>
 
