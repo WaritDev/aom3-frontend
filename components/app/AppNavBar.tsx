@@ -21,7 +21,7 @@ import { ColorModeContext } from '@/components/ThemeRegistry';
 const NEON_GREEN = '#00E08F';
 
 const NAV_ITEMS = [
-  { label: 'Overview', path: '/overview' },
+  { label: 'Overview', path: '/overview-demo' },
   { label: 'Deposit',  path: '/deposit' },
   { label: 'Simulation',  path: '/simulation' },
   { label: 'Top Users', path: '/top-users' },
