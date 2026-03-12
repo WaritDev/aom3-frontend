@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  Container, Typography, Box, Card, CardContent, Stack, Fade, Grow, useTheme, alpha 
+    Container, Typography, Box, Card, CardContent, Stack, Fade, Grow, useTheme, alpha 
 } from '@mui/material';
 
 import GavelIcon from '@mui/icons-material/Gavel';
@@ -21,97 +21,97 @@ const NEON_GREEN = '#00E08F';
 const NEON_ORANGE = '#FF9800';
 
 interface Asset {
-  symbol: string;
-  name: string;
-  coinId: string;
-  image: string;
-}
+    symbol: string;
+    name: string;
+    coinId: string;
+    image: string;
+    }
 
-const DURATIONS = [
-  { label: '3 Months', value: 3, multiplier: 1.0 },
-  { label: '6 Months', value: 6, multiplier: 1.0 },
-  { label: '12 Months', value: 12, multiplier: 1.2 },
-  { label: '18 Months', value: 18, multiplier: 1.5 },
-  { label: '24 Months', value: 24, multiplier: 2.0 },
-];
+    const DURATIONS = [
+    { label: '3 Months', value: 3, multiplier: 1.0 },
+    { label: '6 Months', value: 6, multiplier: 1.0 },
+    { label: '12 Months', value: 12, multiplier: 1.2 },
+    { label: '18 Months', value: 18, multiplier: 1.5 },
+    { label: '24 Months', value: 24, multiplier: 2.0 },
+    ];
 
-const ASSETS: Asset[] = [
-  { symbol: 'USDC', name: 'USD Coin', coinId: 'USDC', image: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png' },
-];
+    const ASSETS: Asset[] = [
+    { symbol: 'USDC', name: 'USD Coin', coinId: 'USDC', image: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png' },
+    ];
 
-export default function DepositPage() {
-  const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
-  const router = useRouter();
-  const { address, isConnected } = useAccount();
-  
-  const { createQuestAction, refetchBalance: refetchAOM3Balance } = useAOM3();
-  const { runAutoDeposit, refreshBalance: refreshHLBalance } = useHL();
+    export default function DepositPage() {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+    const router = useRouter();
+    const { address, isConnected } = useAccount();
+    
+    const { createQuestAction, refetchBalance: refetchAOM3Balance } = useAOM3();
+    const { runAutoDeposit, refreshBalance: refreshHLBalance } = useHL();
 
-  const [selectedAsset] = useState<Asset>(ASSETS[0]);
-  const [monthlyAmount, setMonthlyAmount] = useState<string>('');
-  const [durationValue, setDurationValue] = useState<number>(12);
-  const [isDeploying, setIsDeploying] = useState(false);
+    const [selectedAsset] = useState<Asset>(ASSETS[0]);
+    const [monthlyAmount, setMonthlyAmount] = useState<string>('');
+    const [durationValue, setDurationValue] = useState<number>(12);
+    const [isDeploying, setIsDeploying] = useState(false);
 
-  const selectedDuration = useMemo(() => 
-    DURATIONS.find(d => d.value === durationValue) || DURATIONS[1], 
-    [durationValue]
-  );
+    const selectedDuration = useMemo(() => 
+        DURATIONS.find(d => d.value === durationValue) || DURATIONS[1], 
+        [durationValue]
+    );
 
-  const { data: balanceData, refetch: refetchWalletBalance, isLoading: isBalanceLoading } = useReadContract({
-    address: USDC_ADDRESS as Address,
-    abi: USDC_ABI,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-  });
+    const { data: balanceData, refetch: refetchWalletBalance, isLoading: isBalanceLoading } = useReadContract({
+        address: USDC_ADDRESS as Address,
+        abi: USDC_ABI,
+        functionName: 'balanceOf',
+        args: address ? [address] : undefined,
+    });
 
-  const walletBalance = balanceData ? formatUnits(balanceData as bigint, 6) : '0';
+    const walletBalance = balanceData ? formatUnits(balanceData as bigint, 6) : '0';
 
-  const { apy: realBaseApy, loading: isYieldLoading } = useRealYield(selectedAsset.coinId);
+    const { apy: realBaseApy, loading: isYieldLoading } = useRealYield(selectedAsset.coinId);
 
-  const amountNum = parseFloat(monthlyAmount) || 0;
-  const totalPrincipal = amountNum * selectedDuration.value;
-  const estimatedMaxApy = (realBaseApy * selectedDuration.multiplier * 1.5).toFixed(2);
+    const amountNum = parseFloat(monthlyAmount) || 0;
+    const totalPrincipal = amountNum * selectedDuration.value;
+    const estimatedMaxApy = (realBaseApy * selectedDuration.multiplier * 1.5).toFixed(2);
 
-  const estimatedInterest = useMemo(() => {
-    const annualRate = (realBaseApy * selectedDuration.multiplier) / 100;
-    const monthlyRate = annualRate / 12;
-    if (monthlyRate === 0) return 0;
-    const fv = amountNum * ((Math.pow(1 + monthlyRate, selectedDuration.value) - 1) / monthlyRate);
-    return fv - totalPrincipal;
-  }, [amountNum, realBaseApy, selectedDuration, totalPrincipal]);
+    const estimatedInterest = useMemo(() => {
+        const annualRate = (realBaseApy * selectedDuration.multiplier) / 100;
+        const monthlyRate = annualRate / 12;
+        if (monthlyRate === 0) return 0;
+        const fv = amountNum * ((Math.pow(1 + monthlyRate, selectedDuration.value) - 1) / monthlyRate);
+        return fv - totalPrincipal;
+    }, [amountNum, realBaseApy, selectedDuration, totalPrincipal]);
 
-  const [statusStep, setStatusStep] = useState<0 | 1 | 2 | 3>(0);
+    const [statusStep, setStatusStep] = useState<0 | 1 | 2 | 3>(0);
 
-  const handleInitializeQuest = async () => {
-      if (!isConnected) return;
-      if (amountNum < 10) return;
-      if (amountNum > Number(walletBalance)) return;
+    const handleInitializeQuest = async () => {
+        if (!isConnected) return;
+        if (amountNum < 10) return;
+        if (amountNum > Number(walletBalance)) return;
 
-      setIsDeploying(true);
-      setStatusStep(1);
+        setIsDeploying(true);
+        setStatusStep(1);
 
-      try {
-          const hash = await createQuestAction(monthlyAmount, selectedDuration.value);
-          if (hash) {
-              setStatusStep(2);
-              await runAutoDeposit(monthlyAmount); 
-              setStatusStep(3);
-              await Promise.all([
-                  refetchWalletBalance(),
-                  refetchAOM3Balance(),
-                  refreshHLBalance()
-              ]);
-              setTimeout(() => router.push('/overview'), 1500);
-          }
-      } catch (error) {
-          console.error("Workflow Failed:", error);
-          setStatusStep(0);
-          setIsDeploying(false);
-      }
-  };
+        try {
+            const hash = await createQuestAction(monthlyAmount, selectedDuration.value);
+            if (hash) {
+                setStatusStep(2);
+                await runAutoDeposit(monthlyAmount); 
+                setStatusStep(3);
+                await Promise.all([
+                    refetchWalletBalance(),
+                    refetchAOM3Balance(),
+                    refreshHLBalance()
+                ]);
+                setTimeout(() => router.push('/overview-demo'), 1500);
+            }
+        } catch (error) {
+            console.error("Workflow Failed:", error);
+            setStatusStep(0);
+            setIsDeploying(false);
+        }
+    };
 
-  return (
+    return (
     <Box sx={{ 
         bgcolor: 'background.default', 
         minHeight: '100vh', 
@@ -195,5 +195,5 @@ export default function DepositPage() {
         </Stack>
         </Container>
     </Box>
-  );
+    );
 }
