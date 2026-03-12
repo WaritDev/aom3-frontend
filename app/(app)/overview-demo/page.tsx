@@ -15,7 +15,7 @@ import AutorenewIcon from '@mui/icons-material/Autorenew';
 
 import { useAOM3 } from '@/hooks/useAOM3';
 import { useHL } from '@/hooks/useHL'; 
-import { useAccount, useReadContracts } from 'wagmi';
+import { useAccount, useReadContracts, useReadContract } from 'wagmi';
 import { DynamicPlanDemoCard } from '@/components/card/DynamicPlanDemoCard'; 
 import { AOM3_VAULT_ADDRESS, AOM3_VAULT_ABI } from '@/constants/contracts';
 
@@ -44,13 +44,20 @@ export default function OverviewDemoPage() {
     
     const { 
         isWindowOpen, nextQuestId, rewardPoolBalance, 
-        totalDP: globalTotalDP, claimRewardAction 
+        claimRewardAction 
     } = useAOM3();
 
     const { 
         hlBalance, vaultEquity, vaultApr, vaultPnl,
         isAutoInvesting, refreshBalance: refetchHL,
     } = useHL();
+
+    const { data: vaultTotalDPRaw, refetch: refetchVaultTotalDP } = useReadContract({
+        address: AOM3_VAULT_ADDRESS as `0x${string}`,
+        abi: AOM3_VAULT_ABI,
+        functionName: 'totalDisciplinePoints',
+    });
+    const systemTotalDP = vaultTotalDPRaw ? Number(vaultTotalDPRaw) : 0;
 
     const questIds = useMemo(() => 
         Array.from({ length: Number(nextQuestId || 0) }, (_, i) => BigInt(i)), 
@@ -66,26 +73,37 @@ export default function OverviewDemoPage() {
         }))
     });
 
-    const { userTotalDP, myQuestIds } = useMemo(() => {
+    const { userTotalDP, myActiveQuestIds, myClaimableQuestIds } = useMemo(() => {
         let total = 0;
-        const mine: bigint[] = [];
+        const active: bigint[] = [];
+        const claimable: bigint[] = [];
+        
         if (allQuestsData && address) {
-            allQuestsData.forEach((res) => {
+            allQuestsData.forEach((res, index) => {
                 if (res.status === 'success' && res.result) {
                     const quest = res.result as unknown as QuestResult; 
-                    if (quest[0].toLowerCase() === address.toLowerCase() && quest[8]) {
-                        total += Number(quest[7]);
-                        mine.push(BigInt(allQuestsData.indexOf(res)));
+                    if (quest[0].toLowerCase() === address.toLowerCase()) {
+                        const dp = Number(quest[7]);
+                        const isActive = quest[8];
+
+                        if (dp > 0) {
+                            total += dp;
+                            claimable.push(BigInt(index));
+                        }
+
+                        if (isActive) {
+                            active.push(BigInt(index));
+                        }
                     }
                 }
             });
         }
-        return { userTotalDP: total, myQuestIds: mine };
+        return { userTotalDP: total, myActiveQuestIds: active, myClaimableQuestIds: claimable };
     }, [allQuestsData, address]);
 
-    const sortedMyQuestIds = useMemo(() => {
-        if (!allQuestsData || myQuestIds.length === 0) return [];
-        return [...myQuestIds].sort((a, b) => {
+    const sortedActiveQuestIds = useMemo(() => {
+        if (!allQuestsData || myActiveQuestIds.length === 0) return [];
+        return [...myActiveQuestIds].sort((a, b) => {
             const resA = allQuestsData[Number(a)];
             const resB = allQuestsData[Number(b)];
             if (resA.status === 'success' && resB.status === 'success') {
@@ -95,23 +113,24 @@ export default function OverviewDemoPage() {
             }
             return 0;
         });
-    }, [myQuestIds, allQuestsData]);
+    }, [myActiveQuestIds, allQuestsData]);
 
-    const networkShare = globalTotalDP > 0 ? (userTotalDP / Number(globalTotalDP)) * 100 : 0;
+    const networkShare = systemTotalDP > 0 ? (userTotalDP / systemTotalDP) * 100 : 0;
     const estimatedReward = (networkShare / 100) * Number(rewardPoolBalance);
     const isClaimDay = true; 
 
     const handleActionSuccess = useCallback(async () => {
         setRefreshTrigger(prev => prev + 1);
         await refetchQuests();
+        await refetchVaultTotalDP();
         await refetchHL();
-    }, [refetchQuests, refetchHL]);
+    }, [refetchQuests, refetchVaultTotalDP, refetchHL]);
 
     const handleClaimAll = async () => {
-        if (myQuestIds.length === 0) return;
+        if (myClaimableQuestIds.length === 0) return;
         setIsClaiming(true);
         try {
-            for (const id of myQuestIds) {
+            for (const id of myClaimableQuestIds) {
                 try { await claimRewardAction(Number(id)); } catch (e) { console.error(e); }
             }
             await handleActionSuccess();
@@ -245,12 +264,15 @@ export default function OverviewDemoPage() {
                                     <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1, fontWeight: 600 }}>
                                         Your Est. Share ({networkShare.toFixed(2)}%): <Box component="span" color={isDark ? GOLD_COLOR : '#b38f00'}>${estimatedReward.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Box>
                                     </Typography>
+                                    <Typography variant="caption" sx={{ color: NEON_GREEN, mt: 0.5, display: 'block', fontWeight: 700 }}>
+                                        Current Active DP: {userTotalDP.toLocaleString()} / System Total: {systemTotalDP.toLocaleString()}
+                                    </Typography>
                                 </Box>
 
                                 <Box sx={{ textAlign: { xs: 'left', md: 'right' } }}>
                                     <Button 
                                         variant="contained" 
-                                        disabled={!isClaimDay || isClaiming || myQuestIds.length === 0}
+                                        disabled={!isClaimDay || isClaiming || myClaimableQuestIds.length === 0}
                                         onClick={handleClaimAll}
                                         startIcon={isClaiming ? <CircularProgress size={16} color="inherit" /> : <WorkspacePremiumIcon />}
                                         sx={{ 
@@ -259,7 +281,7 @@ export default function OverviewDemoPage() {
                                             fontWeight: 900, 
                                             borderRadius: 3, 
                                             px: 4, py: 2,
-                                            boxShadow: isClaimDay && myQuestIds.length > 0 ? `0 8px 25px ${alpha(GOLD_COLOR, 0.4)}` : 'none',
+                                            boxShadow: isClaimDay && myClaimableQuestIds.length > 0 ? `0 8px 25px ${alpha(GOLD_COLOR, 0.4)}` : 'none',
                                             '&:hover': { bgcolor: '#FFC107', transform: 'translateY(-2px)' },
                                             '&:disabled': { bgcolor: alpha(theme.palette.divider, 0.1), color: 'text.disabled' },
                                             transition: 'all 0.2s ease'
@@ -282,7 +304,7 @@ export default function OverviewDemoPage() {
                             <Typography variant="h5" fontWeight="900" sx={{ display: 'flex', alignItems: 'center', gap: 2, color: 'text.primary' }}>
                                 <AssessmentIcon sx={{ color: NEON_GREEN }} /> ACTIVE MISSIONS 
                                 <Chip 
-                                    label={myQuestIds.length} 
+                                    label={myActiveQuestIds.length}
                                     size="small" 
                                     sx={{ bgcolor: isDark ? alpha(theme.palette.common.white, 0.05) : '#f0f0f0', color: 'text.secondary', fontWeight: 900 }} 
                                 />
@@ -304,8 +326,8 @@ export default function OverviewDemoPage() {
                         </Stack>
                         
                         <Stack spacing={3}>
-                            {sortedMyQuestIds.length > 0 ? (
-                                sortedMyQuestIds.map((id, index) => (
+                            {sortedActiveQuestIds.length > 0 ? (
+                                sortedActiveQuestIds.map((id, index) => (
                                     <Zoom in key={`${id.toString()}-${refreshTrigger}`} timeout={500 + (index * 100)}>
                                         <Box>
                                             <DynamicPlanDemoCard questId={id} onActionSuccess={handleActionSuccess} />

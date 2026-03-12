@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { formatUnits } from 'viem';
-import { useReadContract } from 'wagmi';
+import { useReadContract, useAccount, usePublicClient } from 'wagmi';
 import { 
     Card, CardContent, Stack, Box, Typography, 
     LinearProgress, Button, Skeleton, Divider, Chip, Tooltip,
@@ -16,7 +16,7 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
 import { useAOM3 } from '@/hooks/useAOM3';
 import { useHL } from '@/hooks/useHL'; 
-import { AOM3_VAULT_ADDRESS, AOM3_VAULT_ABI } from '@/constants/contracts';
+import { AOM3_VAULT_ADDRESS, AOM3_VAULT_ABI, USDC_ADDRESS } from '@/constants/contracts';
 import { AOM3ActionModal } from '../modal/AOM3ActionModal';
 
 const NEON_GREEN = '#00E08F';
@@ -99,6 +99,9 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
     
+    const { address } = useAccount();
+    const publicClient = usePublicClient();
+    
     const [isProcessing, setIsProcessing] = useState(false);
     const [currentTime, setCurrentTime] = useState<number>(0);
     const [modalConfig, setModalConfig] = useState<{ open: boolean; type: 'deposit' | 'withdraw'; }>({ open: false, type: 'deposit' });
@@ -107,7 +110,7 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
         open: false, status: 'processing', step: 1, totalSteps: 1, message: ''
     });
 
-    const { totalDP, syncQuestAction, withdrawAction } = useAOM3();
+    const { syncQuestAction, withdrawAction } = useAOM3();
 
     const { 
         runAutoDeposit, 
@@ -117,6 +120,13 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
         withdrawYieldToDistributor, 
         vaultPnl 
     } = useHL();
+
+    const { data: vaultTotalDPRaw } = useReadContract({
+        address: AOM3_VAULT_ADDRESS as `0x${string}`,
+        abi: AOM3_VAULT_ABI,
+        functionName: 'totalDisciplinePoints',
+    });
+    const systemTotalDP = vaultTotalDPRaw ? Number(vaultTotalDPRaw) : 0;
 
     useEffect(() => {
         setCurrentTime(Math.floor(Date.now() / 1000));
@@ -138,7 +148,7 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
     }
 
     const [, monthlyAmount, totalDeposited, currentStreak, duration, startTimestamp, , dp, active] = questData;
-    if (!active) return null;
+    if (!active && Number(dp) === 0) return null;
 
     const monthlyAmtStr = formatUnits(monthlyAmount, 6);
     const totalDepNum = Number(formatUnits(totalDeposited, 6));
@@ -156,7 +166,7 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
         penaltyAmount = (totalDepNum * currentPenaltyPct) / 100;
     }
 
-    const networkShare = totalDP > 0 ? (Number(dp) / Number(totalDP)) * 100 : 0;
+    const networkShare = systemTotalDP > 0 ? (Number(dp) / systemTotalDP) * 100 : 0;
     const canDeposit = !isMatured;
 
     const handleConfirmAction = async () => {
@@ -194,6 +204,31 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
 
                 setStatusModal(prev => ({ ...prev, step: 2, message: `Step 2/${currentTotalSteps}: Bridging funds back to your wallet...` }));
                 await withdrawToWallet(totalDepNum.toString());
+
+                if (publicClient && address) {
+                    setStatusModal(prev => ({ ...prev, step: 2, message: `Step 2/${currentTotalSteps}: ⏳ Waiting for funds to cross the bridge... (May take 1-3 minutes)` }));
+                    
+                    const initialUsdc = await publicClient.readContract({
+                        address: USDC_ADDRESS as `0x${string}`,
+                        abi: [{ name: 'balanceOf', type: 'function', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }] }] as const,
+                        functionName: 'balanceOf',
+                        args: [address]
+                    }) as bigint;
+
+                    let currentUsdc = initialUsdc;
+                    let attempts = 0;
+                    
+                    while (currentUsdc <= initialUsdc && attempts < 60) {
+                        await new Promise(r => setTimeout(r, 5000));
+                        currentUsdc = await publicClient.readContract({
+                            address: USDC_ADDRESS as `0x${string}`,
+                            abi: [{ name: 'balanceOf', type: 'function', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }] }] as const,
+                            functionName: 'balanceOf',
+                            args: [address]
+                        }) as bigint;
+                        attempts++;
+                    }
+                }
 
                 if (hasYield) {
                     setStatusModal(prev => ({ 
