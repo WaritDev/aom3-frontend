@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { formatUnits } from 'viem';
 import { useReadContract } from 'wagmi';
 import { 
@@ -86,7 +86,7 @@ const TransactionStatusModal = ({ open, status, step, totalSteps, message, onClo
     );
 };
 
-interface DynamicPlanCardProps {
+interface DynamicPlanDemoCardProps {
     questId: bigint;
     onActionSuccess?: () => void;
 }
@@ -95,7 +95,7 @@ type QuestData = readonly [
     `0x${string}`, bigint, bigint, bigint, bigint, bigint, bigint, bigint, boolean
 ];
 
-export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onActionSuccess }) => {
+export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questId, onActionSuccess }) => {
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
     
@@ -107,10 +107,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
         open: false, status: 'processing', step: 1, totalSteps: 1, message: ''
     });
 
-    const { 
-        isWindowOpen, totalDP, depositAction, withdrawAction,
-        remainingLockSeconds, isWithdrawLocked 
-    } = useAOM3();
+    const { totalDP, syncQuestAction, withdrawAction } = useAOM3();
 
     const { 
         runAutoDeposit, 
@@ -136,28 +133,6 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
 
     const questData = quest as QuestData | undefined;
 
-    const lockTimeLabel = useMemo(() => {
-        if (remainingLockSeconds <= 0) return null;
-        const h = Math.floor(remainingLockSeconds / 3600);
-        const m = Math.floor((remainingLockSeconds % 3600) / 60);
-        const s = remainingLockSeconds % 60;
-        return `${h}h ${m}m ${s}s remaining`;
-    }, [remainingLockSeconds]);
-
-    const coolingStatus = useMemo(() => {
-        if (!questData || currentTime === 0) return { isLocked: false, label: "" };
-        const lastDep = Number(questData[6]);
-        if (lastDep === 0) return { isLocked: false, label: "" };
-        const hasDepositedThisMonth = new Date(lastDep * 1000).getMonth() === new Date(currentTime * 1000).getMonth();
-
-        if (hasDepositedThisMonth) {
-            const nextMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
-            const daysToNext = Math.ceil((nextMonth.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-            return { isLocked: true, label: `NEXT DEPOSIT (${daysToNext}D)` };
-        }
-        return { isLocked: false, label: "" };
-    }, [questData, currentTime]);
-
     if (isLoading || !questData) {
         return <Skeleton variant="rectangular" height={220} sx={{ borderRadius: 4, bgcolor: 'background.paper' }} />;
     }
@@ -170,7 +145,8 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
     const progress = Math.min((Number(currentStreak) / Number(duration)) * 100, 100);
     const totalDurationSec = Number(duration) * 30 * 24 * 60 * 60;
     const maturityTimestamp = Number(startTimestamp) + totalDurationSec;
-    const isMatured = currentTime >= maturityTimestamp;
+    const isMatured = (currentTime >= maturityTimestamp) || (Number(currentStreak) >= Number(duration));
+    
     let currentPenaltyPct = 0;
     let penaltyAmount = 0;
     
@@ -181,7 +157,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
     }
 
     const networkShare = totalDP > 0 ? (Number(dp) / Number(totalDP)) * 100 : 0;
-    const canDeposit = isWindowOpen && !coolingStatus.isLocked && !isMatured;
+    const canDeposit = !isMatured;
 
     const handleConfirmAction = async () => {
         setModalConfig(prev => ({ ...prev, open: false }));
@@ -200,7 +176,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
 
         try {
             if (modalConfig.type === 'deposit') {
-                const hash = await depositAction(monthlyAmtStr, Number(duration)); 
+                const hash = await syncQuestAction(Number(questId), monthlyAmtStr); 
                 if (hash) {
                     setStatusModal(prev => ({ ...prev, step: 2, message: `Step 2/${currentTotalSteps}: Deploying to HL Yield Strategy...` }));
                     await runAutoDeposit(monthlyAmtStr);
@@ -211,7 +187,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                 } catch (innerErr: unknown) {
                     const error = innerErr as Error;
                     if (error.message?.toLowerCase().includes("lock")) {
-                        throw new Error("HL_VAULT_LOCKED: Your principal is currently in the 4-day lock period.");
+                        throw new Error("HL_VAULT_LOCKED: Please disable withdrawal lock on Hyperliquid Testnet first.");
                     }
                     throw innerErr;
                 }
@@ -261,7 +237,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
         <>
             <Card sx={{ 
                 bgcolor: 'background.paper',
-                border: `1px solid ${isMatured ? NEON_GREEN : (coolingStatus.isLocked ? alpha(NEON_GREEN, 0.3) : theme.palette.divider)}`, 
+                border: `1px solid ${isMatured ? NEON_GREEN : theme.palette.divider}`, 
                 borderRadius: 4, position: 'relative', overflow: 'visible', transition: '0.3s',
                 backgroundImage: 'none',
                 '&:hover': { borderColor: NEON_GREEN, boxShadow: isDark ? `0 0 25px ${alpha(NEON_GREEN, 0.15)}` : `0 4px 20px ${alpha(NEON_GREEN, 0.1)}` }
@@ -280,7 +256,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                             <Stack direction="row" spacing={1} alignItems="center" mb={1.5}>
                                 <Typography variant="h6" fontWeight="900" color="text.primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                     {isMatured ? <CheckCircleIcon sx={{ color: NEON_GREEN }} /> : null}
-                                    {isMatured ? "STRATEGY MATURED" : "ACTIVE SAVINGS QUEST"}
+                                    {isMatured ? "STRATEGY MATURED" : "ACTIVE SAVINGS QUEST (DEMO)"}
                                 </Typography>
                                 <Chip label={`Streak: ${currentStreak}/${duration} Months`} size="small" sx={{ bgcolor: alpha(NEON_GREEN, 0.1), color: NEON_GREEN, fontWeight: 800, borderRadius: 1.5 }} />
                             </Stack>
@@ -324,22 +300,22 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                             </Box>
                             
                             <Stack direction="row" spacing={1.5} justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
-                                <Tooltip title={isWithdrawLocked ? `Security Lock: ${lockTimeLabel}` : (isMatured ? "Redeem full principal + yield" : `Exit and forfeit all yield + ${currentPenaltyPct.toFixed(1)}% principal fee`)}>
+                                <Tooltip title={isMatured ? "Redeem full principal + yield" : `Exit and forfeit all yield + ${currentPenaltyPct.toFixed(1)}% principal fee`}>
                                     <Box component="span">
                                         <Button 
                                             variant={isMatured ? "contained" : "outlined"} 
-                                            disabled={isWithdrawLocked || isProcessing}
+                                            disabled={isProcessing}
                                             onClick={() => setModalConfig({ open: true, type: 'withdraw' })}
                                             sx={{ 
                                                 borderRadius: 2, px: 3, 
-                                                bgcolor: isMatured && !isWithdrawLocked ? NEON_GREEN : 'transparent',
-                                                borderColor: isWithdrawLocked ? theme.palette.divider : (isMatured ? 'transparent' : NEON_RED), 
-                                                color: isWithdrawLocked ? 'text.disabled' : (isMatured ? '#000' : NEON_RED), 
+                                                bgcolor: isMatured ? NEON_GREEN : 'transparent',
+                                                borderColor: isMatured ? 'transparent' : NEON_RED, 
+                                                color: isMatured ? '#000' : NEON_RED, 
                                                 fontWeight: 800,
                                                 '&:hover': isMatured ? { bgcolor: alpha(NEON_GREEN, 0.8) } : {}
                                             }}
                                         >
-                                            {isWithdrawLocked ? "LOCKED" : (isMatured ? "REDEEM FULL + YIELD" : "EXIT QUEST")}
+                                            {isMatured ? "REDEEM FULL + YIELD" : "EXIT QUEST"}
                                         </Button>
                                     </Box>
                                 </Tooltip>
@@ -357,7 +333,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                                             '&:hover': { bgcolor: alpha(NEON_GREEN, 0.8) }
                                         }}
                                     >
-                                        {coolingStatus.isLocked ? coolingStatus.label : (isWindowOpen ? "DEPOSIT" : "WAIT WINDOW")}
+                                        DEPOSIT NOW
                                     </Button>
                                 )}
                             </Stack>
