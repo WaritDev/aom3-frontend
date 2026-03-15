@@ -79,7 +79,7 @@ const HeroSection: React.FC = () => {
             <Box sx={{ bgcolor: isDark ? alpha(NEON_GREEN, 0.08) : alpha(NEON_GREEN, 0.12), px: 3, py: 1, borderRadius: '50px', border: `1px solid ${alpha(NEON_GREEN, 0.3)}`, display: 'flex', alignItems: 'center', gap: 1.5, animation: 'pulse 2s infinite ease-in-out' }}>
               <BoltIcon sx={{ color: NEON_GREEN, fontSize: 18 }} />
               <Typography variant="caption" sx={{ color: isDark ? NEON_GREEN : '#008F5D', fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase' }}>
-                AOM3: Protocol Intelligence V2.0
+                AOM3: Discipline Protocol
               </Typography>
             </Box>
 
@@ -94,7 +94,7 @@ const HeroSection: React.FC = () => {
             </Typography>
 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} pt={2}>
-              <Button component={Link} href="/overview" variant="contained" sx={launchButtonSx}>Start Your Discipline</Button>
+              <Button component={Link} href="/overview-demo" variant="contained" sx={launchButtonSx}>Start Your Discipline</Button>
               <Button component={Link} href="/docs" variant="outlined" size="large" sx={{ px: 5, borderRadius: '12px', borderColor: theme.palette.divider, color: 'text.primary', fontWeight: 900, borderWidth: '2px', '&:hover': { borderColor: NEON_GREEN, bgcolor: alpha(NEON_GREEN, 0.05), borderWidth: '2px' } }}>Reward Mechanics</Button>
             </Stack>
 

@@ -4,6 +4,13 @@ import React, { createContext, useState, useMemo, useEffect } from 'react';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v14-appRouter';
+import { JetBrains_Mono } from 'next/font/google';
+
+const jetbrainsMono = JetBrains_Mono({
+    subsets: ['latin'],
+    weight: ['400', '500', '700', '800'],
+    display: 'swap',
+});
 
 export const ColorModeContext = createContext({ toggleColorMode: () => {} });
 
@@ -48,7 +55,11 @@ export default function ThemeRegistry({ children }: { children: React.ReactNode 
             },
         },
         typography: {
-            fontFamily: 'inherit',
+            fontFamily: jetbrainsMono.style.fontFamily,
+            button: {
+                fontWeight: 800,
+                letterSpacing: 0.5,
+            }
         },
         shape: { borderRadius: 12 },
     }), [state.mode]);
