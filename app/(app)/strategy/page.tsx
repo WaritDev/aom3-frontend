@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { 
     Container, Typography, Box, Card, CardContent, Stack, 
-    Divider, useTheme, alpha 
+    Divider, useTheme, alpha, IconButton, Tooltip, Link,
+    Chip, Button
 } from '@mui/material';
 
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
@@ -16,10 +17,22 @@ import TimelineIcon from '@mui/icons-material/Timeline';
 import LocalAtmIcon from '@mui/icons-material/LocalAtm';
 import FunctionsIcon from '@mui/icons-material/Functions';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import TerminalIcon from '@mui/icons-material/Terminal';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+
+import { 
+    AOM3_RANKING_ADDRESS, 
+    AOM3_VAULT_ADDRESS, 
+    AOM3_REWARD_DISTRIBUTOR_ADDRESS 
+} from '@/constants/contracts';
 
 const NEON_GREEN = '#00E08F';
 const NEON_ORANGE = '#FFA500';
 const THEME_DANGER = '#FF5252';
+
+const rawVaultAddress = process.env.NEXT_PUBLIC_HL_TEST_VAULT_ADDRESS || "0xa15099a30bbf2e68942d6f4c43d70d04faeab0a0";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const FlowNode = ({ icon: Icon, title, desc, color }: { icon: any, title: string, desc: string, color: string }) => (
@@ -37,6 +50,50 @@ const FlowNode = ({ icon: Icon, title, desc, color }: { icon: any, title: string
         </CardContent>
     </Card>
 );
+
+const ContractRow = ({ name, address, link }: { name: string, address: string, link: string }) => {
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(address);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    return (
+        <Stack 
+            direction={{ xs: 'column', sm: 'row' }} 
+            alignItems={{ xs: 'flex-start', sm: 'center' }} 
+            justifyContent="space-between" 
+            spacing={2} 
+            sx={{ p: 2, bgcolor: alpha('#000', 0.2), borderRadius: 2, border: `1px solid ${alpha('#fff', 0.1)}` }}
+        >
+            <Box>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 800, letterSpacing: 1, display: 'block', mb: 0.5 }}>
+                    {name}
+                </Typography>
+                <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, color: NEON_GREEN, fontSize: { xs: '0.8rem', sm: '1rem' } }}>
+                    {address}
+                </Typography>
+            </Box>
+            <Stack direction="row" spacing={1}>
+                <Tooltip title={copied ? "Copied!" : "Copy Address"}>
+                    <IconButton size="small" onClick={handleCopy} sx={{ color: 'text.secondary', '&:hover': { color: NEON_GREEN } }}>
+                        <ContentCopyIcon fontSize="small" />
+                    </IconButton>
+                </Tooltip>
+                <Tooltip title="View in Explorer">
+                    <IconButton 
+                        size="small" component={Link} href={link} target="_blank" rel="noopener noreferrer"
+                        sx={{ color: 'text.secondary', '&:hover': { color: NEON_GREEN } }}
+                    >
+                        <OpenInNewIcon fontSize="small" />
+                    </IconButton>
+                </Tooltip>
+            </Stack>
+        </Stack>
+    );
+};
 
 export default function StrategyPage() {
     const theme = useTheme();
@@ -68,6 +125,34 @@ export default function StrategyPage() {
                 <Typography variant="body1" color="text.secondary" mt={2} maxWidth="md" mx="auto" fontSize="1.1rem">
                     HLP (Hyperliquidity Provider) democratizes <b>Market Making</b>—a highly profitable strategy traditionally reserved for large financial institutions. It allows anyone to provide liquidity and earn a share of the exchange&apos;s trading fees and spreads.
                 </Typography>
+                
+                <Box mt={4} display="flex" justifyContent="center">
+                    <Button
+                        component={Link}
+                        href="https://hyperliquid.gitbook.io/hyperliquid-docs/hypercore/vaults/protocol-vaults"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        variant="outlined"
+                        startIcon={<MenuBookIcon />}
+                        endIcon={<OpenInNewIcon sx={{ fontSize: 16 }} />}
+                        sx={{
+                            color: NEON_GREEN,
+                            borderColor: alpha(NEON_GREEN, 0.5),
+                            borderRadius: 3,
+                            fontWeight: 800,
+                            px: 3,
+                            py: 1,
+                            textDecoration: 'none',
+                            '&:hover': {
+                                borderColor: NEON_GREEN,
+                                bgcolor: alpha(NEON_GREEN, 0.1),
+                                textDecoration: 'none'
+                            }
+                        }}
+                    >
+                        READ OFFICIAL PROTOCOL VAULTS DOCS
+                    </Button>
+                </Box>
             </Box>
 
             <Box 
@@ -179,7 +264,7 @@ export default function StrategyPage() {
                     transition: 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.6s' 
                 }}
             >
-                <Card sx={{ borderRadius: 4, bgcolor: isDark ? '#111' : '#f8f8f8', border: `1px solid ${theme.palette.divider}` }}>
+                <Card sx={{ borderRadius: 4, bgcolor: isDark ? '#111' : '#f8f8f8', border: `1px solid ${theme.palette.divider}`, mb: 8 }}>
                     <CardContent sx={{ p: { xs: 3, md: 5 } }}>
                         <Typography variant="h5" fontWeight={900} mb={3} display="flex" alignItems="center" gap={1}>
                             <FunctionsIcon sx={{ color: NEON_ORANGE }} /> The Mathematics & Game Theory
@@ -213,7 +298,7 @@ export default function StrategyPage() {
                             <Typography variant="body2" color="text.primary" fontWeight={600} display="flex" alignItems="flex-start" gap={1}>
                                 <TimelineIcon sx={{ color: NEON_ORANGE, mt: -0.2 }} />
                                 <span>
-                                    <b>Why AOM3?</b> In standard DeFi, you only earn the base APY. AOM3 introduces <i>Game Theory</i> by charging a 10% penalty to users who break their savings discipline (early exits). These penalties are redistributed as the &quot;Multiplier&quot; to users who maintain their streak, allowing your <i>Effective APY</i> to sustainably outperform standard market rates.
+                                    <b>Why AOM3?</b> In standard DeFi, you only earn the base APY. AOM3 introduces <i>Game Theory</i> by charging a penalty to users who break their savings discipline (early exits). These penalties are redistributed as the &quot;Multiplier&quot; to users who maintain their streak, allowing your <i>Effective APY</i> to sustainably outperform standard market rates.
                                 </span>
                             </Typography>
                         </Box>
@@ -221,6 +306,58 @@ export default function StrategyPage() {
                 </Card>
             </Box>
 
+            <Box
+                sx={{ 
+                    opacity: show ? 1 : 0, 
+                    transform: show ? 'translateY(0)' : 'translateY(30px)', 
+                    transition: 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.8s' 
+                }}
+            >
+                <Card sx={{ 
+                    borderRadius: 4, 
+                    bgcolor: alpha(NEON_GREEN, 0.03), 
+                    border: `1px dashed ${alpha(NEON_GREEN, 0.3)}`,
+                    boxShadow: `0 0 40px ${alpha(NEON_GREEN, 0.05)}`
+                }}>
+                    <CardContent sx={{ p: { xs: 3, md: 5 } }}>
+                        <Stack direction="row" alignItems="center" justifyContent="space-between" mb={4}>
+                            <Typography variant="h5" fontWeight={900} display="flex" alignItems="center" gap={1.5} color="text.primary">
+                                <TerminalIcon sx={{ color: NEON_GREEN }} /> SYSTEM ARCHITECTURE
+                            </Typography>
+                            <Chip label="TESTNET LIVE" size="small" sx={{ bgcolor: alpha(NEON_GREEN, 0.1), color: NEON_GREEN, fontWeight: 900, border: `1px solid ${NEON_GREEN}` }} />
+                        </Stack>
+
+                        <Typography variant="body2" color="text.secondary" mb={4}>
+                            The AOM3 Protocol is fully decentralized, transparent, and verifiable. 
+                            You can inspect the source code and all on-chain transactions directly through the block explorers below.
+                        </Typography>
+
+                        <Stack spacing={2}>
+                            <ContractRow 
+                                name="L1 Arbitrum: AOM3 Vault Settlement Contract" 
+                                address={AOM3_VAULT_ADDRESS} 
+                                link={`https://sepolia.arbiscan.io/address/${AOM3_VAULT_ADDRESS}`} 
+                            />
+                            <ContractRow 
+                                name="L1 Arbitrum: Discipline Points (DP) Ranking System" 
+                                address={AOM3_RANKING_ADDRESS} 
+                                link={`https://sepolia.arbiscan.io/address/${AOM3_RANKING_ADDRESS}`} 
+                            />
+                            <ContractRow 
+                                name="L1 Arbitrum: Yield & Penalty Distributor" 
+                                address={AOM3_REWARD_DISTRIBUTOR_ADDRESS} 
+                                link={`https://sepolia.arbiscan.io/address/${AOM3_REWARD_DISTRIBUTOR_ADDRESS}`} 
+                            />
+                            <ContractRow 
+                                name="L2 Hyperliquid: High-Frequency Market Making Vault" 
+                                address={rawVaultAddress} 
+                                link={`https://app.hyperliquid-testnet.xyz/vaults/${rawVaultAddress}`} 
+                            />
+                        </Stack>
+
+                    </CardContent>
+                </Card>
+            </Box>
         </Container>
     );
 }
