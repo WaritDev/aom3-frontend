@@ -279,7 +279,7 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
                             <Stack direction="row" spacing={4}>
                                 <Box>
                                     <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block' }}>EST. NETWORK SHARE</Typography>
-                                    <Typography variant="body2" color="text.primary" fontWeight={800}>{networkShare.toFixed(4)}%</Typography>
+                                    <Typography variant="body2" color="text.primary" fontWeight={800}>{networkShare.toFixed(2)}%</Typography>
                                 </Box>
                                 <Box>
                                     <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block' }}>MATURITY DATE</Typography>
