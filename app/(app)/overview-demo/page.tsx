@@ -21,6 +21,7 @@ import { AOM3_VAULT_ADDRESS, AOM3_VAULT_ABI } from '@/constants/contracts';
 
 const NEON_GREEN = '#00E08F';
 const GOLD_COLOR = '#FFD700';
+const NEON_ORANGE = '#FFA500';
 
 type QuestResult = readonly [
   `0x${string}`, // owner
@@ -43,7 +44,7 @@ export default function OverviewDemoPage() {
     const isDark = theme.palette.mode === 'dark';
     
     const { 
-        isWindowOpen, nextQuestId, rewardPoolBalance, 
+        nextQuestId, rewardPoolBalance, 
         claimRewardAction 
     } = useAOM3();
 
@@ -167,16 +168,6 @@ export default function OverviewDemoPage() {
                                     <AutorenewIcon />
                                 </Button>
                             </Tooltip>
-                            
-                            <Chip 
-                                label={isWindowOpen ? "SYSTEM ACTIVE" : "VAULT STANDBY"} 
-                                sx={{ 
-                                    bgcolor: isWindowOpen ? alpha(NEON_GREEN, 0.15) : 'transparent', 
-                                    color: isWindowOpen ? NEON_GREEN : 'text.disabled', 
-                                    border: `1px solid ${isWindowOpen ? NEON_GREEN : theme.palette.divider}`, 
-                                    fontWeight: 900, borderRadius: 2 
-                                }} 
-                            />
                         </Stack>
                     </Stack>
                 </Fade>
@@ -231,8 +222,8 @@ export default function OverviewDemoPage() {
                                 </Box>
 
                                 <Box sx={{ flex: 1, textAlign: { xs: 'left', md: 'center' } }}>
-                                    <Typography variant="caption" sx={{ color: isDark ? GOLD_COLOR : '#b38f00', fontWeight: 900, display: 'block', mb: 1, letterSpacing: 1 }}>VAULT YIELD (APR)</Typography>
-                                    <Typography variant="h3" fontWeight="900" color={isDark ? GOLD_COLOR : '#d4af37'}>{(vaultApr * 100).toFixed(2)}%</Typography>
+                                    <Typography variant="caption" sx={{ color: isDark ? GOLD_COLOR : NEON_ORANGE, fontWeight: 900, display: 'block', mb: 1, letterSpacing: 1 }}>VAULT YIELD (APR)</Typography>
+                                    <Typography variant="h3" fontWeight="900" color={isDark ? GOLD_COLOR : NEON_ORANGE}>{(vaultApr * 100).toFixed(2)}%</Typography>
                                     <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1, fontWeight: 600 }}>
                                         Est. Monthly: +{((vaultApr / 12) * 100).toFixed(2)}%
                                     </Typography>
@@ -262,7 +253,7 @@ export default function OverviewDemoPage() {
                                         ${Number(rewardPoolBalance).toLocaleString()}
                                     </Typography>
                                     <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1, fontWeight: 600 }}>
-                                        Your Est. Share ({networkShare.toFixed(2)}%): <Box component="span" color={isDark ? GOLD_COLOR : '#b38f00'}>${estimatedReward.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Box>
+                                        Your Est. Share ({networkShare.toFixed(2)}%): <Box component="span" color={isDark ? GOLD_COLOR : NEON_ORANGE}>${estimatedReward.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Box>
                                     </Typography>
                                     <Typography variant="caption" sx={{ color: NEON_GREEN, mt: 0.5, display: 'block', fontWeight: 700 }}>
                                         Current Active DP: {userTotalDP.toLocaleString()} / System Total: {systemTotalDP.toLocaleString()}
