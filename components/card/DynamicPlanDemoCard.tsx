@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { formatUnits } from 'viem';
-import { useReadContract, useAccount, usePublicClient } from 'wagmi';
+import { useReadContract } from 'wagmi';
 import { 
     Card, CardContent, Stack, Box, Typography, 
     LinearProgress, Button, Skeleton, Divider, Chip, Tooltip,
@@ -16,7 +16,7 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
 import { useAOM3 } from '@/hooks/useAOM3';
 import { useHL } from '@/hooks/useHL'; 
-import { AOM3_VAULT_ADDRESS, AOM3_VAULT_ABI, USDC_ADDRESS } from '@/constants/contracts';
+import { AOM3_VAULT_ADDRESS, AOM3_VAULT_ABI } from '@/constants/contracts';
 import { AOM3ActionModal } from '../modal/AOM3ActionModal';
 
 const NEON_GREEN = '#00E08F';
@@ -98,9 +98,6 @@ type QuestData = readonly [
 export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questId, onActionSuccess }) => {
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
-    
-    const { address } = useAccount();
-    const publicClient = usePublicClient();
     
     const [isProcessing, setIsProcessing] = useState(false);
     const [currentTime, setCurrentTime] = useState<number>(0);
@@ -205,31 +202,6 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
                 setStatusModal(prev => ({ ...prev, step: 2, message: `Step 2/${currentTotalSteps}: Bridging funds back to your wallet...` }));
                 await withdrawToWallet(totalDepNum.toString());
 
-                if (publicClient && address) {
-                    setStatusModal(prev => ({ ...prev, step: 2, message: `Step 2/${currentTotalSteps}: ⏳ Waiting for funds to cross the bridge... (May take 1-3 minutes)` }));
-                    
-                    const initialUsdc = await publicClient.readContract({
-                        address: USDC_ADDRESS as `0x${string}`,
-                        abi: [{ name: 'balanceOf', type: 'function', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }] }] as const,
-                        functionName: 'balanceOf',
-                        args: [address]
-                    }) as bigint;
-
-                    let currentUsdc = initialUsdc;
-                    let attempts = 0;
-                    
-                    while (currentUsdc <= initialUsdc && attempts < 60) {
-                        await new Promise(r => setTimeout(r, 5000));
-                        currentUsdc = await publicClient.readContract({
-                            address: USDC_ADDRESS as `0x${string}`,
-                            abi: [{ name: 'balanceOf', type: 'function', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }] }] as const,
-                            functionName: 'balanceOf',
-                            args: [address]
-                        }) as bigint;
-                        attempts++;
-                    }
-                }
-
                 if (hasYield) {
                     setStatusModal(prev => ({ 
                         ...prev, step: 3, 
@@ -247,7 +219,7 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
                 const finalStepNum = currentTotalSteps;
                 setStatusModal(prev => ({ 
                     ...prev, step: finalStepNum, 
-                    message: `Final Step: Recording On-chain Settlement on Arbitrum...` 
+                    message: `Final Step: Recording On-chain Settlement on Arbitrum (Sign required)...` 
                 }));
                 await withdrawAction(Number(questId));
             }
@@ -341,16 +313,18 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
                                             variant={isMatured ? "contained" : "outlined"} 
                                             disabled={isProcessing}
                                             onClick={() => setModalConfig({ open: true, type: 'withdraw' })}
+                                            startIcon={isProcessing && modalConfig.type === 'withdraw' ? <CircularProgress size={16} color="inherit" /> : null}
                                             sx={{ 
                                                 borderRadius: 2, px: 3, 
                                                 bgcolor: isMatured ? NEON_GREEN : 'transparent',
                                                 borderColor: isMatured ? 'transparent' : NEON_RED, 
                                                 color: isMatured ? '#000' : NEON_RED, 
                                                 fontWeight: 800,
-                                                '&:hover': isMatured ? { bgcolor: alpha(NEON_GREEN, 0.8) } : {}
+                                                '&:hover': isMatured ? { bgcolor: alpha(NEON_GREEN, 0.8) } : {},
+                                                '&.Mui-disabled': isMatured ? { bgcolor: alpha(NEON_GREEN, 0.3), color: '#000' } : {}
                                             }}
                                         >
-                                            {isMatured ? "REDEEM FULL + YIELD" : "EXIT QUEST"}
+                                            {isProcessing && modalConfig.type === 'withdraw' ? "PROCESSING..." : (isMatured ? "REDEEM FULL + YIELD" : "EXIT QUEST")}
                                         </Button>
                                     </Box>
                                 </Tooltip>
@@ -359,16 +333,18 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
                                     <Button 
                                         variant="contained" disabled={!canDeposit || isProcessing}
                                         onClick={() => setModalConfig({ open: true, type: 'deposit' })}
+                                        startIcon={isProcessing && modalConfig.type === 'deposit' ? <CircularProgress size={16} color="inherit" /> : null}
                                         sx={{ 
                                             borderRadius: 2, px: 3, 
                                             bgcolor: canDeposit ? NEON_GREEN : theme.palette.divider, 
                                             color: canDeposit ? '#000' : 'text.disabled', 
                                             fontWeight: 900, 
-                                            boxShadow: canDeposit ? `0 4px 15px ${alpha(NEON_GREEN, 0.4)}` : 'none',
-                                            '&:hover': { bgcolor: alpha(NEON_GREEN, 0.8) }
+                                            boxShadow: canDeposit && !isProcessing ? `0 4px 15px ${alpha(NEON_GREEN, 0.4)}` : 'none',
+                                            '&:hover': { bgcolor: alpha(NEON_GREEN, 0.8) },
+                                            '&.Mui-disabled': { bgcolor: alpha(NEON_GREEN, 0.2), color: 'text.disabled' }
                                         }}
                                     >
-                                        DEPOSIT NOW
+                                        {isProcessing && modalConfig.type === 'deposit' ? "PROCESSING..." : "DEPOSIT NOW"}
                                     </Button>
                                 )}
                             </Stack>
