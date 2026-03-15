@@ -2,10 +2,10 @@
 
 import { useState, useCallback, useMemo, useEffect} from 'react';
 import { HttpTransport } from "@nktkas/hyperliquid";
-import { vaultTransfer, withdraw3 } from "@nktkas/hyperliquid/api/exchange";
+import { vaultTransfer, withdraw3, approveAgent } from "@nktkas/hyperliquid/api/exchange";
 import { clearinghouseState, spotClearinghouseState, vaultDetails } from "@nktkas/hyperliquid/api/info";
 import { useAccount, useWalletClient } from 'wagmi';
-import { privateKeyToAccount } from 'viem/accounts';
+import { privateKeyToAccount, generatePrivateKey } from 'viem/accounts';
 import { getAddress, type Hex } from 'viem';
 import { 
     AOM3_REWARD_DISTRIBUTOR_ADDRESS,
@@ -67,6 +67,34 @@ export function useHL() {
 
     const hasAgent = !!getStoredAgent();
 
+    const ensureAgent = useCallback(async () => {
+        let agentData = getStoredAgent();
+        if (agentData) return agentData;
+
+        if (!address || !walletClient) throw new Error("Wallet not connected for Agent Setup");
+
+        console.log("No Agent found. Auto-generating new Hyperliquid Agent...");
+        
+        const agentPrivateKey = generatePrivateKey();
+        const agentAccount = privateKeyToAccount(agentPrivateKey);
+
+        await approveAgent(
+            { transport, wallet: walletClient },
+            {
+                agentAddress: agentAccount.address,
+                agentName: "AOM3_Auto_Agent",
+            }
+        );
+
+        agentData = {
+            address: agentAccount.address,
+            privateKey: agentPrivateKey
+        };
+
+        localStorage.setItem(`hl_agent_${address.toLowerCase()}`, JSON.stringify(agentData));
+        return agentData;
+    }, [address, walletClient, transport, getStoredAgent]);
+
     const bridgeToExternal = useCallback(async (amount: string, destination: string) => {
         if (!walletClient || !address) throw new Error("Wallet not connected");
         
@@ -98,11 +126,9 @@ export function useHL() {
         const pnl = parseFloat(vaultPnl);
         if (pnl <= 0.1) throw new Error("Yield too small to withdraw");
 
-        const agentData = getStoredAgent();
-        if (!agentData || !address) throw new Error("Agent not ready");
-
         try {
             setIsAutoInvesting(true);
+            const agentData = await ensureAgent();
             const agentWallet = privateKeyToAccount(agentData.privateKey as Hex);
 
             await vaultTransfer({ transport, wallet: agentWallet }, { 
@@ -111,14 +137,14 @@ export function useHL() {
                 usd: Math.floor(pnl * 1e6) 
             });
 
-            await bridgeToExternal(pnl.toString(), address);
+            await bridgeToExternal(pnl.toString(), address!);
             
             await refreshBalance();
             return true;
         } finally {
             setIsAutoInvesting(false);
         }
-    }, [vaultPnl, address, getStoredAgent, transport, bridgeToExternal, refreshBalance]);
+    }, [vaultPnl, address, transport, bridgeToExternal, refreshBalance, ensureAgent]);
 
     const withdrawYieldToDistributor = useCallback(async (amount?: string) => {
         if (!DISTRIBUTOR_ADDRESS) throw new Error("Distributor address not configured");
@@ -126,11 +152,9 @@ export function useHL() {
         const targetAmount = amount ? parseFloat(amount) : parseFloat(vaultPnl);
         if (targetAmount <= 0) return false;
 
-        const agentData = getStoredAgent();
-        if (!agentData || !address) throw new Error("Agent not ready");
-
         try {
             setIsAutoInvesting(true);
+            const agentData = await ensureAgent();
             const agentWallet = privateKeyToAccount(agentData.privateKey as Hex);
 
             await vaultTransfer({ transport, wallet: agentWallet }, { 
@@ -146,13 +170,14 @@ export function useHL() {
         } finally {
             setIsAutoInvesting(false);
         }
-    }, [vaultPnl, address, getStoredAgent, transport, bridgeToExternal, refreshBalance]);
+    }, [vaultPnl, transport, bridgeToExternal, refreshBalance, ensureAgent]);
 
     const runAutoDeposit = useCallback(async (amount: string) => {
-        const agentData = getStoredAgent();
-        if (!agentData || !address) return;
+        if (!address) return;
         try {
             setIsAutoInvesting(true);
+            const agentData = await ensureAgent();
+            
             const targetUsd = parseFloat(amount);
             let ready = false;
             for (let i = 0; i < 5; i++) {
@@ -165,13 +190,14 @@ export function useHL() {
             await vaultTransfer({ transport, wallet: agentWallet }, { vaultAddress: VAULT_ADDRESS as Hex, isDeposit: true, usd: Math.floor(targetUsd * 1e6) });
             return true;
         } finally { setIsAutoInvesting(false); }
-    }, [address, refreshBalance, transport, getStoredAgent]);
+    }, [address, refreshBalance, transport, ensureAgent]);
 
     const runAutoWithdraw = useCallback(async (amount: string) => {
-        const agentData = getStoredAgent();
-        if (!agentData || !address) return;
+        if (!address) return;
         try {
             setIsAutoInvesting(true);
+            const agentData = await ensureAgent();
+            
             const targetUsd = parseFloat(amount);
             const agentWallet = privateKeyToAccount(agentData.privateKey as Hex);
             const vData = await vaultDetails({ transport }, { vaultAddress: VAULT_ADDRESS as Hex, user: address as Hex });
@@ -182,7 +208,7 @@ export function useHL() {
             await refreshBalance();
             return true;
         } finally { setIsAutoInvesting(false); }
-    }, [address, refreshBalance, transport, getStoredAgent]);
+    }, [address, refreshBalance, transport, ensureAgent]);
 
     const withdrawToWallet = useCallback(async (amount: string) => {
         try {
