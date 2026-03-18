@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { 
     Container, Typography, Box, Card, CardContent, Stack, 
     Button, Chip, Divider, CircularProgress,
@@ -13,9 +13,10 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 
+import { createClient } from '@supabase/supabase-js'; 
 import { useAOM3 } from '@/hooks/useAOM3';
 import { useHL } from '@/hooks/useHL'; 
-import { useAccount, useReadContracts, useReadContract } from 'wagmi';
+import { useAccount, useReadContract } from 'wagmi'; 
 import { DynamicPlanDemoCard } from '@/components/card/DynamicPlanDemoCard'; 
 import { AOM3_VAULT_ADDRESS, AOM3_VAULT_ABI } from '@/constants/contracts';
 
@@ -23,28 +24,34 @@ const NEON_GREEN = '#00E08F';
 const GOLD_COLOR = '#FFD700';
 const NEON_ORANGE = '#FFA500';
 
-type QuestResult = readonly [
-  `0x${string}`, // owner
-  bigint,        // monthlyAmount
-  bigint,        // totalDeposited
-  bigint,        // currentStreak
-  bigint,        // durationMonths
-  bigint,        // startTimestamp
-  bigint,        // lastDepositTimestamp
-  bigint,        // dp
-  boolean        // active
-];
+export interface QuestDB {
+    quest_id: number;
+    owner_address: string;
+    monthly_amount: number;
+    total_deposited: number;
+    current_streak: number;
+    duration_months: number;
+    start_timestamp: string;
+    last_deposit_timestamp: string;
+    dp: number;
+    is_active: boolean;
+}
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function OverviewDemoPage() {
     const { address } = useAccount();
     const [isClaiming, setIsClaiming] = useState(false);    
     const [refreshTrigger, setRefreshTrigger] = useState(0);
-    
+    const [myQuestsFromDB, setMyQuestsFromDB] = useState<QuestDB[]>([]);
+    const [isLoadingDB, setIsLoadingDB] = useState(true);
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
     
     const { 
-        nextQuestId, rewardPoolBalance, 
+        rewardPoolBalance, 
         claimRewardAction 
     } = useAOM3();
 
@@ -60,61 +67,54 @@ export default function OverviewDemoPage() {
     });
     const systemTotalDP = vaultTotalDPRaw ? Number(vaultTotalDPRaw) : 0;
 
-    const questIds = useMemo(() => 
-        Array.from({ length: Number(nextQuestId || 0) }, (_, i) => BigInt(i)), 
-        [nextQuestId]
-    );
+    useEffect(() => {
+        if (!address) {
+            setMyQuestsFromDB([]);
+            setIsLoadingDB(false);
+            return;
+        }
 
-    const { data: allQuestsData, refetch: refetchQuests } = useReadContracts({
-        contracts: questIds.map(id => ({
-            address: AOM3_VAULT_ADDRESS as `0x${string}`,
-            abi: AOM3_VAULT_ABI,
-            functionName: 'quests',
-            args: [id],
-        }))
-    });
+        const fetchMyQuests = async () => {
+            setIsLoadingDB(true);
+            try {
+                const { data, error } = await supabase
+                    .from('quests')
+                    .select('*')
+                    .eq('owner_address', address.toLowerCase())
+                    .eq('is_active', true)
+                    .order('dp', { ascending: false }); 
+
+                if (error) throw error;
+                if (data) setMyQuestsFromDB(data as QuestDB[]);
+            } catch (err) {
+                console.error("Error fetching quests from Supabase:", err);
+            } finally {
+                setIsLoadingDB(false);
+            }
+        };
+
+        fetchMyQuests();
+    }, [address, refreshTrigger]);
 
     const { userTotalDP, myActiveQuestIds, myClaimableQuestIds } = useMemo(() => {
         let total = 0;
         const active: bigint[] = [];
         const claimable: bigint[] = [];
         
-        if (allQuestsData && address) {
-            allQuestsData.forEach((res, index) => {
-                if (res.status === 'success' && res.result) {
-                    const quest = res.result as unknown as QuestResult; 
-                    if (quest[0].toLowerCase() === address.toLowerCase()) {
-                        const dp = Number(quest[7]);
-                        const isActive = quest[8];
+        myQuestsFromDB.forEach((quest) => {
+            const dp = Number(quest.dp);
+            const questId = BigInt(quest.quest_id);
 
-                        if (dp > 0) {
-                            total += dp;
-                            claimable.push(BigInt(index));
-                        }
-
-                        if (isActive) {
-                            active.push(BigInt(index));
-                        }
-                    }
-                }
-            });
-        }
-        return { userTotalDP: total, myActiveQuestIds: active, myClaimableQuestIds: claimable };
-    }, [allQuestsData, address]);
-
-    const sortedActiveQuestIds = useMemo(() => {
-        if (!allQuestsData || myActiveQuestIds.length === 0) return [];
-        return [...myActiveQuestIds].sort((a, b) => {
-            const resA = allQuestsData[Number(a)];
-            const resB = allQuestsData[Number(b)];
-            if (resA.status === 'success' && resB.status === 'success') {
-                const qA = resA.result as unknown as QuestResult;
-                const qB = resB.result as unknown as QuestResult;
-                return Number(qB[7]) - Number(qA[7]);
+            active.push(questId);
+            
+            if (dp > 0) {
+                total += dp;
+                claimable.push(questId);
             }
-            return 0;
         });
-    }, [myActiveQuestIds, allQuestsData]);
+        
+        return { userTotalDP: total, myActiveQuestIds: active, myClaimableQuestIds: claimable };
+    }, [myQuestsFromDB]);
 
     const networkShare = systemTotalDP > 0 ? (userTotalDP / systemTotalDP) * 100 : 0;
     const estimatedReward = (networkShare / 100) * Number(rewardPoolBalance);
@@ -122,10 +122,9 @@ export default function OverviewDemoPage() {
 
     const handleActionSuccess = useCallback(async () => {
         setRefreshTrigger(prev => prev + 1);
-        await refetchQuests();
         await refetchVaultTotalDP();
         await refetchHL();
-    }, [refetchQuests, refetchVaultTotalDP, refetchHL]);
+    }, [refetchVaultTotalDP, refetchHL]);
 
     const handleClaimAll = async () => {
         if (myClaimableQuestIds.length === 0) return;
@@ -163,9 +162,10 @@ export default function OverviewDemoPage() {
                             <Tooltip title="Force Sync Data">
                                 <Button 
                                     onClick={handleActionSuccess} 
+                                    disabled={isLoadingDB}
                                     sx={{ minWidth: 0, p: 1, color: 'text.secondary', '&:hover': { color: NEON_GREEN, bgcolor: alpha(NEON_GREEN, 0.1) } }}
                                 >
-                                    <AutorenewIcon />
+                                    <AutorenewIcon sx={{ animation: isLoadingDB ? 'spin 1s linear infinite' : 'none' }} />
                                 </Button>
                             </Tooltip>
                         </Stack>
@@ -317,8 +317,13 @@ export default function OverviewDemoPage() {
                         </Stack>
                         
                         <Stack spacing={3}>
-                            {sortedActiveQuestIds.length > 0 ? (
-                                sortedActiveQuestIds.map((id, index) => (
+                            {isLoadingDB ? (
+                                <Box sx={{ textAlign: 'center', py: 5 }}>
+                                    <CircularProgress sx={{ color: NEON_GREEN }} />
+                                    <Typography mt={2} color="text.secondary" fontWeight={700}>LOADING MISSIONS...</Typography>
+                                </Box>
+                            ) : myActiveQuestIds.length > 0 ? (
+                                myActiveQuestIds.map((id, index) => (
                                     <Zoom in key={`${id.toString()}-${refreshTrigger}`} timeout={500 + (index * 100)}>
                                         <Box>
                                             <DynamicPlanDemoCard questId={id} onActionSuccess={handleActionSuccess} />
@@ -340,6 +345,9 @@ export default function OverviewDemoPage() {
                     </Stack>
                 </Fade>
             </Container>
+            <style jsx global>{`
+                @keyframes spin { 100% { transform: rotate(360deg); } }
+            `}</style>
         </Box>
     );
 }
