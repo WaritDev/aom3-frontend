@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { 
     Container, Typography, Box, Card, CardContent, Stack, 
     Button, Chip, Divider, CircularProgress,
@@ -12,15 +12,18 @@ import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
+import LockIcon from '@mui/icons-material/Lock';
 
 import { useAOM3 } from '@/hooks/useAOM3';
 import { useHL } from '@/hooks/useHL'; 
-import { useAccount, useReadContracts } from 'wagmi';
+import { useAccount, useReadContracts, useReadContract } from 'wagmi';
 import { DynamicPlanCard } from '@/components/card/DynamicPlanCard';
 import { AOM3_VAULT_ADDRESS, AOM3_VAULT_ABI } from '@/constants/contracts';
 
 const NEON_GREEN = '#00E08F';
 const GOLD_COLOR = '#FFD700';
+const NEON_ORANGE = '#FFA500';
+const THEME_DANGER = '#FF5252';
 
 type QuestResult = readonly [
   `0x${string}`, // owner
@@ -38,19 +41,31 @@ export default function OverviewPage() {
     const { address } = useAccount();
     const [isClaiming, setIsClaiming] = useState(false);    
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [currentDay, setCurrentDay] = useState<number | null>(null);
     
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
     
     const { 
-        isWindowOpen, nextQuestId, rewardPoolBalance, 
-        totalDP: globalTotalDP, currentDay, claimRewardAction 
+        nextQuestId, rewardPoolBalance, 
+        claimRewardAction 
     } = useAOM3();
 
     const { 
         hlBalance, vaultEquity, vaultApr, vaultPnl,
         isAutoInvesting, refreshBalance: refetchHL,
     } = useHL();
+
+    useEffect(() => {
+        setCurrentDay(new Date().getDate());
+    }, []);
+
+    const { data: vaultTotalDPRaw, refetch: refetchVaultTotalDP } = useReadContract({
+        address: AOM3_VAULT_ADDRESS as `0x${string}`,
+        abi: AOM3_VAULT_ABI,
+        functionName: 'totalDisciplinePoints',
+    });
+    const systemTotalDP = vaultTotalDPRaw ? Number(vaultTotalDPRaw) : 0;
 
     const questIds = useMemo(() => 
         Array.from({ length: Number(nextQuestId || 0) }, (_, i) => BigInt(i)), 
@@ -66,26 +81,37 @@ export default function OverviewPage() {
         }))
     });
 
-    const { userTotalDP, myQuestIds } = useMemo(() => {
+    const { userTotalDP, myActiveQuestIds, myClaimableQuestIds } = useMemo(() => {
         let total = 0;
-        const mine: bigint[] = [];
+        const active: bigint[] = [];
+        const claimable: bigint[] = [];
+        
         if (allQuestsData && address) {
-            allQuestsData.forEach((res) => {
+            allQuestsData.forEach((res, index) => {
                 if (res.status === 'success' && res.result) {
                     const quest = res.result as unknown as QuestResult; 
-                    if (quest[0].toLowerCase() === address.toLowerCase() && quest[8]) {
-                        total += Number(quest[7]);
-                        mine.push(BigInt(allQuestsData.indexOf(res)));
+                    if (quest[0].toLowerCase() === address.toLowerCase()) {
+                        const dp = Number(quest[7]);
+                        const isActive = quest[8];
+
+                        if (dp > 0) {
+                            total += dp;
+                            claimable.push(BigInt(index));
+                        }
+
+                        if (isActive) {
+                            active.push(BigInt(index));
+                        }
                     }
                 }
             });
         }
-        return { userTotalDP: total, myQuestIds: mine };
+        return { userTotalDP: total, myActiveQuestIds: active, myClaimableQuestIds: claimable };
     }, [allQuestsData, address]);
 
-    const sortedMyQuestIds = useMemo(() => {
-        if (!allQuestsData || myQuestIds.length === 0) return [];
-        return [...myQuestIds].sort((a, b) => {
+    const sortedActiveQuestIds = useMemo(() => {
+        if (!allQuestsData || myActiveQuestIds.length === 0) return [];
+        return [...myActiveQuestIds].sort((a, b) => {
             const resA = allQuestsData[Number(a)];
             const resB = allQuestsData[Number(b)];
             if (resA.status === 'success' && resB.status === 'success') {
@@ -95,23 +121,24 @@ export default function OverviewPage() {
             }
             return 0;
         });
-    }, [myQuestIds, allQuestsData]);
-
-    const networkShare = globalTotalDP > 0 ? (userTotalDP / Number(globalTotalDP)) * 100 : 0;
+    }, [myActiveQuestIds, allQuestsData]);
+    const networkShare = systemTotalDP > 0 ? (userTotalDP / systemTotalDP) * 100 : 0;
     const estimatedReward = (networkShare / 100) * Number(rewardPoolBalance);
     const isClaimDay = currentDay === 1 || currentDay === 16;
+    const isReady = currentDay !== null;
 
     const handleActionSuccess = useCallback(async () => {
         setRefreshTrigger(prev => prev + 1);
         await refetchQuests();
+        await refetchVaultTotalDP();
         await refetchHL();
-    }, [refetchQuests, refetchHL]);
+    }, [refetchQuests, refetchVaultTotalDP, refetchHL]);
 
     const handleClaimAll = async () => {
-        if (myQuestIds.length === 0) return;
+        if (myClaimableQuestIds.length === 0) return;
         setIsClaiming(true);
         try {
-            for (const id of myQuestIds) {
+            for (const id of myClaimableQuestIds) {
                 try { await claimRewardAction(Number(id)); } catch (e) { console.error(e); }
             }
             await handleActionSuccess();
@@ -135,7 +162,7 @@ export default function OverviewPage() {
                         <Box>
                             <Typography variant="overline" sx={{ color: NEON_GREEN, fontWeight: 900, letterSpacing: 3 }}>OPERATIONAL TERMINAL</Typography>
                             <Typography variant="h3" fontWeight="900" sx={{ letterSpacing: -2, lineHeight: 1, color: 'text.primary' }}>
-                                QUEST <Box component="span" sx={{ color: NEON_GREEN }}>DASHBOARD</Box>
+                                QUEST <Box component="span" sx={{ color: NEON_GREEN }}>DASHBOARD</Box> 
                             </Typography>
                         </Box>
                         
@@ -148,16 +175,6 @@ export default function OverviewPage() {
                                     <AutorenewIcon />
                                 </Button>
                             </Tooltip>
-                            
-                            <Chip 
-                                label={isWindowOpen ? "SYSTEM ACTIVE" : "VAULT STANDBY"} 
-                                sx={{ 
-                                    bgcolor: isWindowOpen ? alpha(NEON_GREEN, 0.15) : 'transparent', 
-                                    color: isWindowOpen ? NEON_GREEN : 'text.disabled', 
-                                    border: `1px solid ${isWindowOpen ? NEON_GREEN : theme.palette.divider}`, 
-                                    fontWeight: 900, borderRadius: 2 
-                                }} 
-                            />
                         </Stack>
                     </Stack>
                 </Fade>
@@ -212,8 +229,8 @@ export default function OverviewPage() {
                                 </Box>
 
                                 <Box sx={{ flex: 1, textAlign: { xs: 'left', md: 'center' } }}>
-                                    <Typography variant="caption" sx={{ color: isDark ? GOLD_COLOR : '#b38f00', fontWeight: 900, display: 'block', mb: 1, letterSpacing: 1 }}>VAULT YIELD (APR)</Typography>
-                                    <Typography variant="h3" fontWeight="900" color={isDark ? GOLD_COLOR : '#d4af37'}>{(vaultApr * 100).toFixed(2)}%</Typography>
+                                    <Typography variant="caption" sx={{ color: isDark ? GOLD_COLOR : NEON_ORANGE, fontWeight: 900, display: 'block', mb: 1, letterSpacing: 1 }}>VAULT YIELD (APR)</Typography>
+                                    <Typography variant="h3" fontWeight="900" color={isDark ? GOLD_COLOR : NEON_ORANGE}>{(vaultApr * 100).toFixed(2)}%</Typography>
                                     <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1, fontWeight: 600 }}>
                                         Est. Monthly: +{((vaultApr / 12) * 100).toFixed(2)}%
                                     </Typography>
@@ -243,32 +260,50 @@ export default function OverviewPage() {
                                         ${Number(rewardPoolBalance).toLocaleString()}
                                     </Typography>
                                     <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1, fontWeight: 600 }}>
-                                        Your Est. Share ({networkShare.toFixed(2)}%): <Box component="span" color={isDark ? GOLD_COLOR : '#b38f00'}>${estimatedReward.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Box>
+                                        Your Est. Share ({networkShare.toFixed(2)}%): <Box component="span" color={isDark ? GOLD_COLOR : NEON_ORANGE}>${estimatedReward.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Box>
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ color: NEON_GREEN, mt: 0.5, display: 'block', fontWeight: 700 }}>
+                                        Current Active DP: {userTotalDP.toLocaleString()} / System Total: {systemTotalDP.toLocaleString()}
                                     </Typography>
                                 </Box>
 
                                 <Box sx={{ textAlign: { xs: 'left', md: 'right' } }}>
-                                    <Button 
-                                        variant="contained" 
-                                        disabled={!isClaimDay || isClaiming || myQuestIds.length === 0}
-                                        onClick={handleClaimAll}
-                                        startIcon={isClaiming ? <CircularProgress size={16} color="inherit" /> : <WorkspacePremiumIcon />}
+                                    <Tooltip title={!isReady ? "Loading..." : (!isClaimDay ? "Claiming is only available on the 1st and 16th of every month." : "")}>
+                                        <span>
+                                            <Button 
+                                                variant="contained" 
+                                                disabled={!isReady || !isClaimDay || isClaiming || myClaimableQuestIds.length === 0}
+                                                onClick={handleClaimAll}
+                                                startIcon={
+                                                    isClaiming 
+                                                        ? <CircularProgress size={16} color="inherit" /> 
+                                                        : (!isClaimDay && isReady ? <LockIcon fontSize="small" /> : <WorkspacePremiumIcon />)
+                                                }
+                                                sx={{ 
+                                                    bgcolor: GOLD_COLOR, 
+                                                    color: '#000', 
+                                                    fontWeight: 900, 
+                                                    borderRadius: 3, 
+                                                    px: 4, py: 2,
+                                                    boxShadow: isClaimDay && myClaimableQuestIds.length > 0 ? `0 8px 25px ${alpha(GOLD_COLOR, 0.4)}` : 'none',
+                                                    '&:hover': { bgcolor: '#FFC107', transform: 'translateY(-2px)' },
+                                                    '&:disabled': { bgcolor: alpha(theme.palette.divider, 0.1), color: 'text.disabled' },
+                                                    transition: 'all 0.2s ease'
+                                                }}
+                                            >
+                                                {isClaiming ? "SYNCING..." : (!isClaimDay && isReady ? "LOCKED (OPENS 1ST & 16TH)" : "CLAIM REWARDS")}
+                                            </Button>
+                                        </span>
+                                    </Tooltip>
+                                    
+                                    <Typography 
+                                        variant="caption" 
                                         sx={{ 
-                                            bgcolor: GOLD_COLOR, 
-                                            color: '#000', 
-                                            fontWeight: 900, 
-                                            borderRadius: 3, 
-                                            px: 4, py: 2,
-                                            boxShadow: isClaimDay && myQuestIds.length > 0 ? `0 8px 25px ${alpha(GOLD_COLOR, 0.4)}` : 'none',
-                                            '&:hover': { bgcolor: '#FFC107', transform: 'translateY(-2px)' },
-                                            '&:disabled': { bgcolor: alpha(theme.palette.divider, 0.1), color: 'text.disabled' },
-                                            transition: 'all 0.2s ease'
+                                            display: 'block', mt: 1.5, fontWeight: 800,
+                                            color: isReady ? (isClaimDay ? NEON_GREEN : THEME_DANGER) : 'text.disabled'
                                         }}
                                     >
-                                        {isClaiming ? "SYNCING..." : "CLAIM REWARDS"}
-                                    </Button>
-                                    <Typography variant="caption" sx={{ display: 'block', mt: 1.5, color: isClaimDay ? NEON_GREEN : 'text.disabled', fontWeight: 800 }}>
-                                        {isClaimDay ? "✅ CLAIM WINDOW IS OPEN TODAY" : "⏳ CLAIMABLE ON 1ST AND 16TH OF THE MONTH"}
+                                        {!isReady ? "⏳ CHECKING WINDOW..." : (isClaimDay ? "✅ CLAIM WINDOW IS OPEN" : "🔒 OPENS ON THE 1ST & 16TH")}
                                     </Typography>
                                 </Box>
                             </Stack>
@@ -282,7 +317,7 @@ export default function OverviewPage() {
                             <Typography variant="h5" fontWeight="900" sx={{ display: 'flex', alignItems: 'center', gap: 2, color: 'text.primary' }}>
                                 <AssessmentIcon sx={{ color: NEON_GREEN }} /> ACTIVE MISSIONS 
                                 <Chip 
-                                    label={myQuestIds.length} 
+                                    label={myActiveQuestIds.length}
                                     size="small" 
                                     sx={{ bgcolor: isDark ? alpha(theme.palette.common.white, 0.05) : '#f0f0f0', color: 'text.secondary', fontWeight: 900 }} 
                                 />
@@ -304,8 +339,8 @@ export default function OverviewPage() {
                         </Stack>
                         
                         <Stack spacing={3}>
-                            {sortedMyQuestIds.length > 0 ? (
-                                sortedMyQuestIds.map((id, index) => (
+                            {sortedActiveQuestIds.length > 0 ? (
+                                sortedActiveQuestIds.map((id, index) => (
                                     <Zoom in key={`${id.toString()}-${refreshTrigger}`} timeout={500 + (index * 100)}>
                                         <Box>
                                             <DynamicPlanCard questId={id} onActionSuccess={handleActionSuccess} />
