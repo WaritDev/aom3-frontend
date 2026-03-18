@@ -26,7 +26,7 @@ const NAV_ITEMS = [
   { label: 'Simulation',  path: '/simulation' },
   { label: 'AOM3 Ranking',  path: '/ranking' },
   { label: 'Info',  path: '/strategy' },
-  { label: 'Top Vault Depositors', path: '/top-users' },
+  { label: 'Top Vault Depositor', path: '/top-users' },
 ];
 
 const AppNavbar = () => {
