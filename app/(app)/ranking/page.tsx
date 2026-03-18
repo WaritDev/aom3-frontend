@@ -10,10 +10,19 @@ import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import StarIcon from '@mui/icons-material/Star';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 
-import { useAOM3, type LeaderboardEntry } from '@/hooks/useAOM3';
+import { createClient } from '@supabase/supabase-js';
+import { useAOM3 } from '@/hooks/useAOM3';
 import { useAccount } from 'wagmi';
 
 const NEON_GREEN = '#00E08F';
+
+export interface UserDB {
+    wallet_address: string;
+    lifetime_dp: number;
+    current_active_dp: number;
+    total_quests: number;
+    total_months: number;
+}
 
 interface RankItem {
     rank: number | string;
@@ -23,6 +32,10 @@ interface RankItem {
     yield: number;
     address?: string;
 }
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const PodiumCard = ({ user, index }: { user: RankItem, index: number }) => {
     const theme = useTheme();
@@ -178,27 +191,36 @@ export default function RankingPage() {
     const isDark = theme.palette.mode === 'dark';
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const { address } = useAccount();
-    
-    const { userRanking, totalParticipants, fetchLeaderboard, totalDP, rewardPoolBalance } = useAOM3();
-
+    const { totalDP, rewardPoolBalance } = useAOM3();
     const [period, setPeriod] = useState('all-time');
-    const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+    const [leaderboardDB, setLeaderboardDB] = useState<UserDB[]>([]);
     const [loading, setLoading] = useState(true);
+    const [totalParticipants, setTotalParticipants] = useState(0);
 
     const loadLeaderboardData = useCallback(async () => {
         try {
-            const data = await fetchLeaderboard();
-            setLeaderboard(data);
+            setLoading(true);
+            
+            const { data, count, error } = await supabase
+                .from('users')
+                .select('*', { count: 'exact' })
+                .order('current_active_dp', { ascending: false });
+                
+            if (error) throw error;
+            
+            if (data) setLeaderboardDB(data as UserDB[]);
+            if (count !== null) setTotalParticipants(count);
+            
         } catch (error) {
-            console.error("Failed to load leaderboard:", error);
+            console.error("Failed to load leaderboard from Supabase:", error);
         } finally {
             setLoading(false);
         }
-    }, [fetchLeaderboard]);
+    }, []);
 
     useEffect(() => {
         loadLeaderboardData();
-    }, [loadLeaderboardData, totalParticipants]);
+    }, [loadLeaderboardData, period]);
 
     const calculateYield = useCallback((userDP: number) => {
         if (totalDP === 0) return 0;
@@ -208,15 +230,15 @@ export default function RankingPage() {
     const shortenAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
     const formattedLeaderboard = useMemo(() => {
-        return leaderboard.map((user, index) => ({
+        return leaderboardDB.map((user, index) => ({
             rank: index + 1,
-            name: user.userAddress.toLowerCase() === address?.toLowerCase() ? 'You' : shortenAddress(user.userAddress),
-            score: Number(user.currentActiveDP),
-            streak: Number(user.totalMonths),
-            yield: calculateYield(Number(user.currentActiveDP)),
-            address: user.userAddress
+            name: user.wallet_address.toLowerCase() === address?.toLowerCase() ? 'You' : shortenAddress(user.wallet_address),
+            score: Number(user.current_active_dp),
+            streak: Number(user.total_months),
+            yield: calculateYield(Number(user.current_active_dp)),
+            address: user.wallet_address
         }));
-    }, [leaderboard, address, calculateYield]);
+    }, [leaderboardDB, address, calculateYield]);
 
     const podiumData = useMemo(() => [
         formattedLeaderboard[1] || null,
@@ -225,15 +247,17 @@ export default function RankingPage() {
     ], [formattedLeaderboard]);
 
     const myRankItem = useMemo(() => {
-        const index = leaderboard.findIndex(u => u.userAddress.toLowerCase() === address?.toLowerCase());
+        const index = leaderboardDB.findIndex(u => u.wallet_address.toLowerCase() === address?.toLowerCase());
+        const me = index !== -1 ? leaderboardDB[index] : null;
+        
         return {
             rank: index !== -1 ? index + 1 : '-',
             name: 'You',
-            score: userRanking.currentActiveDP || 0,
-            streak: userRanking.totalMonths || 0,
-            yield: calculateYield(userRanking.currentActiveDP || 0),
+            score: me ? Number(me.current_active_dp) : 0,
+            streak: me ? Number(me.total_months) : 0,
+            yield: calculateYield(me ? Number(me.current_active_dp) : 0),
         };
-    }, [leaderboard, address, userRanking, calculateYield]);
+    }, [leaderboardDB, address, calculateYield]);
 
     if (loading) {
         return (
