@@ -159,7 +159,7 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
     
     if (!isMatured && currentTime > 0) {
         const remainingSec = Math.max(0, maturityTimestamp - currentTime);
-        currentPenaltyPct = 2 + ((remainingSec * 3) / totalDurationSec);
+        currentPenaltyPct = 1 + ((remainingSec * 2) / totalDurationSec);
         penaltyAmount = (totalDepNum * currentPenaltyPct) / 100;
     }
 

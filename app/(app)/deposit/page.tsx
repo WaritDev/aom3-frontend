@@ -240,7 +240,7 @@ export default function DepositPage() {
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ pl: 3.5 }}>
                         You are committing to deposit <strong>${amountNum} USDC</strong> every month for <strong>{durationValue} months</strong>. 
-                        Upon successful maturity, you can withdraw your <strong>100% principal + all accumulated Real Yield</strong>.
+                        Upon successful maturity, you can withdraw your <strong>100% principal + all accumulated Real Yield</strong> (Note: A standard <strong>$1 Hyperliquid Bridge fee</strong> applies upon withdrawal).
                     </Typography>
                 </Box>
 
@@ -250,7 +250,7 @@ export default function DepositPage() {
                         2. Early Exit Risk & Penalty
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ pl: 3.5 }}>
-                        If you choose to withdraw your funds before maturity, you will face an <strong>Early Exit Fee between 2% to 5%</strong> (Dynamic Penalty) on your principal. Additionally, <strong>all your generated yield will be forfeited</strong> and sent to the Savers Reward Pool.
+                        If you choose to withdraw your funds before maturity, you will face an <strong>Early Exit Fee between 1% to 3%</strong> (Dynamic Penalty) on your principal. Additionally, <strong>all your generated yield will be forfeited</strong> and sent to the Savers Reward Pool.
                     </Typography>
                 </Box>
 
@@ -275,7 +275,7 @@ export default function DepositPage() {
                         } 
                         label={
                             <Typography variant="body2" fontWeight={700} color="text.primary">
-                                I understand the rules, risks, and penalties, and I am ready to commit to this Discipline Quest.
+                                I understand the rules, risks, penalties, and bridge fees, and I am ready to commit to this Discipline Quest.
                             </Typography>
                         } 
                         sx={{ m: 0, alignItems: 'flex-start' }}
