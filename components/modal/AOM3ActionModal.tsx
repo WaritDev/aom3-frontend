@@ -148,7 +148,7 @@ export const AOM3ActionModal: React.FC<AOM3ActionModalProps> = ({
                                 <Typography variant="subtitle2" fontWeight="900" color={ERROR_RED}>EARLY WITHDRAWAL PENALTY</Typography>
                             </Stack>
                             <Typography variant="body2" sx={{ color: isDark ? '#ff9999' : '#c62828', fontWeight: 500 }}>
-                                Early redemption detected. A 10% penalty will be deducted and redirected to the Reward Pool, totaling {penalty.toFixed(2)} USDC.
+                                Early redemption detected. A 1-3% penalty will be deducted and redirected to the Reward Pool, totaling {penalty.toFixed(2)} USDC.
                             </Typography>
                         </Box>
                     ) : type === 'deposit' && (
