@@ -12,6 +12,7 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 
 import { createClient } from '@supabase/supabase-js';
 import { useAOM3 } from '@/hooks/useAOM3';
+import { useHL } from '@/hooks/useHL';
 import { useAccount } from 'wagmi';
 
 const NEON_GREEN = '#00E08F';
@@ -29,6 +30,7 @@ interface RankItem {
     name: string;
     score: number;
     streak: number;
+    totalQuests: number;
     yield: number;
     address?: string;
 }
@@ -105,11 +107,15 @@ const PodiumCard = ({ user, index }: { user: RankItem, index: number }) => {
                         p: 2, borderRadius: 3, border: `1px solid ${theme.palette.divider}`
                     }}>
                         <Box display="flex" justifyContent="space-between">
+                            <Typography variant="overline" color="text.disabled" fontWeight="900" sx={{ fontSize: '0.6rem' }}>ACCUMULATED QUESTS</Typography>
+                            <Typography variant="caption" fontWeight="900" color="text.primary">{user.totalQuests}</Typography>
+                        </Box>
+                        <Box display="flex" justifyContent="space-between">
                             <Typography variant="overline" color="text.disabled" fontWeight="900" sx={{ fontSize: '0.6rem' }}>TOTAL MONTH</Typography>
                             <Typography variant="caption" fontWeight="900" color="text.primary">{user.streak} MO</Typography>
                         </Box>
                         <Box display="flex" justifyContent="space-between">
-                            <Typography variant="overline" color="text.disabled" fontWeight="900" sx={{ fontSize: '0.6rem' }}>EST. YIELD</Typography>
+                            <Typography variant="overline" color="text.disabled" fontWeight="900" sx={{ fontSize: '0.6rem' }}>EST. PROFIT</Typography>
                             <Typography variant="caption" fontWeight="900" color={NEON_GREEN}>+${user.yield.toFixed(2)}</Typography>
                         </Box>
                     </Stack>
@@ -159,11 +165,15 @@ const RankRow = ({ user, isMe = false }: { user: RankItem, isMe?: boolean }) => 
 
                 <Stack direction="row" spacing={4} sx={{ display: { xs: 'none', sm: 'flex' }, flex: 2, justifyContent: 'flex-end' }}>
                     <Box textAlign="right">
+                        <Typography variant="overline" color="text.disabled" sx={{ display: 'block', fontWeight: 900, lineHeight: 1 }}>ACCUMULATED QUESTS</Typography>
+                        <Typography variant="body2" fontWeight="900" color="text.primary">{user.totalQuests}</Typography>
+                    </Box>
+                    <Box textAlign="right">
                         <Typography variant="overline" color="text.disabled" sx={{ display: 'block', fontWeight: 900, lineHeight: 1 }}>STREAK</Typography>
                         <Typography variant="body2" fontWeight="900" color="text.primary">{user.streak} MO</Typography>
                     </Box>
                     <Box textAlign="right" sx={{ minWidth: 100 }}>
-                        <Typography variant="overline" color="text.disabled" sx={{ display: 'block', fontWeight: 900, lineHeight: 1 }}>EST. YIELD</Typography>
+                        <Typography variant="overline" color="text.disabled" sx={{ display: 'block', fontWeight: 900, lineHeight: 1 }}>EST. PROFIT</Typography>
                         <Typography variant="body2" fontWeight="900" color={NEON_GREEN}>+${user.yield.toFixed(2)}</Typography>
                     </Box>
                 </Stack>
@@ -192,6 +202,7 @@ export default function RankingPage() {
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const { address } = useAccount();
     const { totalDP, rewardPoolBalance } = useAOM3();
+    const { vaultPnl } = useHL();
     const [period, setPeriod] = useState('all-time');
     const [leaderboardDB, setLeaderboardDB] = useState<UserDB[]>([]);
     const [loading, setLoading] = useState(true);
@@ -204,7 +215,7 @@ export default function RankingPage() {
             const { data, count, error } = await supabase
                 .from('users')
                 .select('*', { count: 'exact' })
-                .order('current_active_dp', { ascending: false });
+                .order('lifetime_dp', { ascending: false });
                 
             if (error) throw error;
             
@@ -222,22 +233,39 @@ export default function RankingPage() {
         loadLeaderboardData();
     }, [loadLeaderboardData, period]);
 
-    const calculateYield = useCallback((userDP: number) => {
+    const myDP = useMemo(() => {
+        const me = leaderboardDB.find(u => u.wallet_address.toLowerCase() === address?.toLowerCase());
+        return me ? Number(me.lifetime_dp) : 0;
+    }, [leaderboardDB, address]);
+
+    const calculateYield = useCallback((userDP: number, isMe: boolean) => {
+        const pnl = Number(vaultPnl);
+        
+        if (isMe) return pnl;
+        
+        if (myDP > 0 && pnl > 0) {
+            return (userDP / myDP) * pnl;
+        }
+        
         if (totalDP === 0) return 0;
         return (userDP / totalDP) * Number(rewardPoolBalance);
-    }, [totalDP, rewardPoolBalance]);
+    }, [vaultPnl, myDP, totalDP, rewardPoolBalance]);
 
     const shortenAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
     const formattedLeaderboard = useMemo(() => {
-        return leaderboardDB.map((user, index) => ({
-            rank: index + 1,
-            name: user.wallet_address.toLowerCase() === address?.toLowerCase() ? 'You' : shortenAddress(user.wallet_address),
-            score: Number(user.current_active_dp),
-            streak: Number(user.total_months),
-            yield: calculateYield(Number(user.current_active_dp)),
-            address: user.wallet_address
-        }));
+        return leaderboardDB.map((user, index) => {
+            const isMe = user.wallet_address.toLowerCase() === address?.toLowerCase();
+            return {
+                rank: index + 1,
+                name: isMe ? 'You' : shortenAddress(user.wallet_address),
+                score: Number(user.lifetime_dp),
+                streak: Number(user.total_months),
+                totalQuests: Number(user.total_quests),
+                yield: calculateYield(Number(user.lifetime_dp), isMe),
+                address: user.wallet_address
+            };
+        });
     }, [leaderboardDB, address, calculateYield]);
 
     const podiumData = useMemo(() => [
@@ -253,11 +281,12 @@ export default function RankingPage() {
         return {
             rank: index !== -1 ? index + 1 : '-',
             name: 'You',
-            score: me ? Number(me.current_active_dp) : 0,
+            score: me ? Number(me.lifetime_dp) : 0,
             streak: me ? Number(me.total_months) : 0,
-            yield: calculateYield(me ? Number(me.current_active_dp) : 0),
+            totalQuests: me ? Number(me.total_quests) : 0,
+            yield: Number(vaultPnl),
         };
-    }, [leaderboardDB, address, calculateYield]);
+    }, [leaderboardDB, address, vaultPnl]);
 
     if (loading) {
         return (
@@ -382,10 +411,6 @@ export default function RankingPage() {
                             LOAD MORE ARCHIVES
                         </Button>
                     )}
-                </Box>
-
-                <Box textAlign="center" sx={{ opacity: 0.2, py: 4 }}>
-                    <Typography variant="caption" sx={{ fontWeight: 800 }}>© 2026 AOM3 PROTOCOL - LEADERBOARD_SYNC_V2.0</Typography>
                 </Box>
             </Container>
         </Box>
