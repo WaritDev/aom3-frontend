@@ -13,6 +13,7 @@ import MilitaryTechIcon from '@mui/icons-material/MilitaryTech';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
 
 import { useAOM3 } from '@/hooks/useAOM3';
 import { useHL } from '@/hooks/useHL'; 
@@ -111,11 +112,7 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
 
     const { 
         runAutoDeposit, 
-        runAutoWithdraw, 
-        withdrawToWallet, 
-        withdrawAllYield, 
-        withdrawYieldToDistributor, 
-        vaultPnl 
+        executeQuestExit, 
     } = useHL();
 
     const { data: vaultTotalDPRaw } = useReadContract({
@@ -140,7 +137,7 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
 
     const questData = quest as QuestData | undefined;
 
-    if (isLoading || !questData) {
+    if (isLoading || !questData || currentTime === 0) {
         return <Skeleton variant="rectangular" height={220} sx={{ borderRadius: 4, bgcolor: 'background.paper' }} />;
     }
 
@@ -166,19 +163,21 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
     const networkShare = systemTotalDP > 0 ? (Number(dp) / systemTotalDP) * 100 : 0;
     const canDeposit = !isMatured;
 
+    let depositBtnText = "DEPOSIT NOW";
+    if (isProcessing && modalConfig.type === 'deposit') depositBtnText = "PROCESSING...";
+
     const handleConfirmAction = async () => {
         setModalConfig(prev => ({ ...prev, open: false }));
         setIsProcessing(true);
         
-        const hasYield = parseFloat(vaultPnl) > 0.5;
-        const currentTotalSteps = modalConfig.type === 'deposit' ? 2 : (hasYield ? 4 : 3);
+        const currentTotalSteps = 2; 
         const amountToReturn = isMatured ? totalDepNum : totalDepNum - penaltyAmount;
 
         setStatusModal({
             open: true, status: 'processing', step: 1, totalSteps: currentTotalSteps,
             message: modalConfig.type === 'deposit' 
                 ? `Step 1/${currentTotalSteps}: Signing Commitment on Arbitrum...` 
-                : `Step 1/${currentTotalSteps}: Recovering Principal ($${totalDepNum.toFixed(2)}) from HL Vault...`
+                : `Step 1/${currentTotalSteps}: Processing Withdrawals & Bridge Routing...`
         });
 
         try {
@@ -190,7 +189,7 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
                 }
             } else {                
                 try {
-                    await runAutoWithdraw(totalDepNum.toString());
+                    await executeQuestExit(isMatured, totalDepNum, penaltyAmount);
                 } catch (innerErr: unknown) {
                     const error = innerErr as Error;
                     if (error.message?.toLowerCase().includes("lock")) {
@@ -199,28 +198,11 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
                     throw innerErr;
                 }
 
-                setStatusModal(prev => ({ ...prev, step: 2, message: `Step 2/${currentTotalSteps}: Bridging funds back to your wallet...` }));
-                await withdrawToWallet(totalDepNum.toString());
-
-                if (hasYield) {
-                    setStatusModal(prev => ({ 
-                        ...prev, step: 3, 
-                        message: isMatured 
-                            ? `Step 3/${currentTotalSteps}: Recovering Profit ($${parseFloat(vaultPnl).toFixed(2)}) to your wallet...` 
-                            : `Step 3/${currentTotalSteps}: Distributing Yield to Savers Reward Pool...` 
-                    }));
-                    if (isMatured) {
-                        await withdrawAllYield();
-                    } else {
-                        await withdrawYieldToDistributor();
-                    }
-                }
-
-                const finalStepNum = currentTotalSteps;
                 setStatusModal(prev => ({ 
-                    ...prev, step: finalStepNum, 
-                    message: `Final Step: Recording On-chain Settlement on Arbitrum (Sign required)...` 
+                    ...prev, step: 2, 
+                    message: `Step 2/${currentTotalSteps}: Recording On-chain Settlement on Arbitrum (Sign required)...` 
                 }));
+                
                 await withdrawAction(Number(questId));
             }
 
@@ -230,7 +212,7 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
                     ? 'Quest Updated! Your funds are earning yield.' 
                     : isMatured 
                         ? `Redeemed $${amountToReturn.toLocaleString()} successfully! Principal and Yield have been returned to your wallet.` 
-                        : `Exit Complete! $${amountToReturn.toLocaleString()} returned. You contributed $${penaltyAmount.toLocaleString()} (${currentPenaltyPct.toFixed(2)}%) + all yield to the Reward Pool. 🤝`
+                        : `Exit Complete! $${amountToReturn.toLocaleString()} returned. You forfeited all yield to the Reward Pool. 🤝`
             }));
             await refetch();
             onActionSuccess?.();
@@ -330,26 +312,54 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
                                 </Tooltip>
                                 
                                 {!isMatured && (
-                                    <Button 
-                                        variant="contained" disabled={!canDeposit || isProcessing}
-                                        onClick={() => setModalConfig({ open: true, type: 'deposit' })}
-                                        startIcon={isProcessing && modalConfig.type === 'deposit' ? <CircularProgress size={16} color="inherit" /> : null}
-                                        sx={{ 
-                                            borderRadius: 2, px: 3, 
-                                            bgcolor: canDeposit ? NEON_GREEN : theme.palette.divider, 
-                                            color: canDeposit ? '#000' : 'text.disabled', 
-                                            fontWeight: 900, 
-                                            boxShadow: canDeposit && !isProcessing ? `0 4px 15px ${alpha(NEON_GREEN, 0.4)}` : 'none',
-                                            '&:hover': { bgcolor: alpha(NEON_GREEN, 0.8) },
-                                            '&.Mui-disabled': { bgcolor: alpha(NEON_GREEN, 0.2), color: 'text.disabled' }
-                                        }}
-                                    >
-                                        {isProcessing && modalConfig.type === 'deposit' ? "PROCESSING..." : "DEPOSIT NOW"}
-                                    </Button>
+                                    <Tooltip title="Maintain your streak by depositing now.">
+                                        <span style={{ cursor: (!canDeposit && !isProcessing) ? 'not-allowed' : 'default' }}>
+                                            <Button 
+                                                variant="contained" disabled={!canDeposit || isProcessing}
+                                                onClick={() => setModalConfig({ open: true, type: 'deposit' })}
+                                                startIcon={
+                                                    isProcessing && modalConfig.type === 'deposit' 
+                                                        ? <CircularProgress size={16} color="inherit" /> 
+                                                        : null
+                                                }
+                                                sx={{ 
+                                                    borderRadius: 2, px: 3, 
+                                                    bgcolor: canDeposit ? NEON_GREEN : theme.palette.divider, 
+                                                    color: canDeposit ? '#000' : 'text.disabled', 
+                                                    fontWeight: 900, 
+                                                    boxShadow: canDeposit && !isProcessing ? `0 4px 15px ${alpha(NEON_GREEN, 0.4)}` : 'none',
+                                                    '&:hover': { bgcolor: alpha(NEON_GREEN, 0.8) },
+                                                    '&.Mui-disabled': { bgcolor: alpha(NEON_GREEN, 0.2), color: 'text.disabled' }
+                                                }}
+                                            >
+                                                {depositBtnText}
+                                            </Button>
+                                        </span>
+                                    </Tooltip>
                                 )}
                             </Stack>
                         </Box>
                     </Stack>
+
+                    {isMatured && (
+                        <Box sx={{ 
+                            mt: 4, p: 2.5, borderRadius: 3, 
+                            bgcolor: alpha(NEON_GREEN, 0.08), 
+                            border: `1px dashed ${NEON_GREEN}`,
+                            display: 'flex', alignItems: 'center', gap: 2.5
+                        }}>
+                            <WorkspacePremiumIcon sx={{ color: NEON_GREEN, fontSize: 36, display: { xs: 'none', sm: 'block' } }} />
+                            <Box>
+                                <Typography variant="subtitle1" sx={{ color: NEON_GREEN, fontWeight: 900, letterSpacing: 0.5 }}>
+                                    QUEST COMPLETED! PENDING DP CLAIM
+                                </Typography>
+                                <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 600, mt: 0.5 }}>
+                                    You have successfully maintained your discipline. Please click <Box component="span" sx={{ color: NEON_GREEN, fontWeight: 800 }}>REDEEM FULL + YIELD</Box> to finalize your rank and officially claim your permanent Discipline Points (DP) on the Leaderboard.
+                                </Typography>
+                            </Box>
+                        </Box>
+                    )}
+
                 </CardContent>
             </Card>
 
