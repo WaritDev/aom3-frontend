@@ -98,7 +98,7 @@ export const MissionCommitmentCard: React.FC<MissionCommitmentCardProps> = ({
                                 ),
                                 sx: { 
                                     height: 72,
-                                    borderRadius: 3, 
+                                    borderRadius: 2, 
                                     bgcolor: isDark ? alpha(theme.palette.common.white, 0.03) : alpha(theme.palette.common.black, 0.02),
                                     color: 'text.primary', 
                                     fontSize: '1.5rem',
@@ -120,7 +120,6 @@ export const MissionCommitmentCard: React.FC<MissionCommitmentCardProps> = ({
                         )}
                     </Box>
 
-                    {/* Right Section: Duration Toggle */}
                     <Box sx={{ flex: 1.2 }}>
                         <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
                             <Typography variant="overline" sx={labelStyle}>
@@ -142,12 +141,12 @@ export const MissionCommitmentCard: React.FC<MissionCommitmentCardProps> = ({
                             sx={{ 
                                 height: 72, 
                                 bgcolor: isDark ? alpha(theme.palette.common.white, 0.03) : alpha(theme.palette.common.black, 0.02), 
-                                borderRadius: 3, 
+                                borderRadius: 2, 
                                 border: `1px solid ${theme.palette.divider}`, 
-                                p: '6px',
+                                p: '8px',
                                 '& .MuiToggleButtonGroup-grouped': { 
                                     border: 0, 
-                                    borderRadius: '10px !important',
+                                    borderRadius: '16px !important',
                                     mx: '4px'
                                 } 
                             }}
