@@ -13,8 +13,7 @@ if (!process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error("❌ Missing NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY in .env file");
 }
 
-const AOM3_RANKING_ADDRESS = "0x13cCE3F66565082E047BaC0FfAbd87B2A4FAc4a4" as const;
-const AOM3_VAULT_ADDRESS = "0x35d4Cf96A0367E99784153F36e4A4D19B8c5f4a5" as const;
+import { AOM3_RANKING_ADDRESS, AOM3_VAULT_ADDRESS } from '@/constants/contracts';
 
 type UserStatsTuple = readonly [
     bigint, // lifetimeDP
