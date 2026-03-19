@@ -4,7 +4,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { 
     Container, Typography, Box, Card, CardContent, Stack, 
     Button, Chip, Divider, CircularProgress,
-    Fade, Grow, Zoom, Tooltip, useTheme, alpha
+    Fade, Grow, Zoom, Tooltip, useTheme, alpha, Snackbar, Alert
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
@@ -47,6 +47,7 @@ export default function OverviewDemoPage() {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [myQuestsFromDB, setMyQuestsFromDB] = useState<QuestDB[]>([]);
     const [isLoadingDB, setIsLoadingDB] = useState(true);
+    const [toastMessage, setToastMessage] = useState('');
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
     
@@ -67,34 +68,34 @@ export default function OverviewDemoPage() {
     });
     const systemTotalDP = vaultTotalDPRaw ? Number(vaultTotalDPRaw) : 0;
 
-    useEffect(() => {
+    const fetchMyQuests = useCallback(async (isSilent = false) => {
         if (!address) {
             setMyQuestsFromDB([]);
-            setIsLoadingDB(false);
+            if (!isSilent) setIsLoadingDB(false);
             return;
         }
 
-        const fetchMyQuests = async () => {
-            setIsLoadingDB(true);
-            try {
-                const { data, error } = await supabase
-                    .from('quests')
-                    .select('*')
-                    .eq('owner_address', address.toLowerCase())
-                    .eq('is_active', true)
-                    .order('dp', { ascending: false }); 
+        if (!isSilent) setIsLoadingDB(true);
+        try {
+            const { data, error } = await supabase
+                .from('quests')
+                .select('*')
+                .eq('owner_address', address.toLowerCase())
+                .eq('is_active', true)
+                .order('dp', { ascending: false }); 
 
-                if (error) throw error;
-                if (data) setMyQuestsFromDB(data as QuestDB[]);
-            } catch (err) {
-                console.error("Error fetching quests from Supabase:", err);
-            } finally {
-                setIsLoadingDB(false);
-            }
-        };
+            if (error) throw error;
+            if (data) setMyQuestsFromDB(data as QuestDB[]);
+        } catch (err) {
+            console.error("Error fetching quests from Supabase:", err);
+        } finally {
+            if (!isSilent) setIsLoadingDB(false);
+        }
+    }, [address]);
 
+    useEffect(() => {
         fetchMyQuests();
-    }, [address, refreshTrigger]);
+    }, [fetchMyQuests, refreshTrigger]);
 
     const { userTotalDP, myActiveQuestIds, myClaimableQuestIds } = useMemo(() => {
         let total = 0;
@@ -120,10 +121,14 @@ export default function OverviewDemoPage() {
     const estimatedReward = (networkShare / 100) * Number(rewardPoolBalance);
     const isClaimDay = true; 
 
-    const handleActionSuccess = useCallback(async () => {
-        setRefreshTrigger(prev => prev + 1);
-        await refetchVaultTotalDP();
-        await refetchHL();
+    const handleActionSuccess = useCallback(async (message?: string) => {
+        setTimeout(async () => {
+            setRefreshTrigger(prev => prev + 1);
+            await refetchVaultTotalDP();
+            await refetchHL();
+            
+            if (message) setToastMessage(message);
+        }, 2500); 
     }, [refetchVaultTotalDP, refetchHL]);
 
     const handleClaimAll = async () => {
@@ -133,7 +138,7 @@ export default function OverviewDemoPage() {
             for (const id of myClaimableQuestIds) {
                 try { await claimRewardAction(Number(id)); } catch (e) { console.error(e); }
             }
-            await handleActionSuccess();
+            await handleActionSuccess('Rewards claimed successfully! Data updated.');
         } finally {
             setIsClaiming(false);
         }
@@ -161,7 +166,7 @@ export default function OverviewDemoPage() {
                         <Stack direction="row" spacing={2} alignItems="center">
                             <Tooltip title="Force Sync Data">
                                 <Button 
-                                    onClick={handleActionSuccess} 
+                                    onClick={() => handleActionSuccess('Data synced with network')} 
                                     disabled={isLoadingDB}
                                     sx={{ minWidth: 0, p: 1, color: 'text.secondary', '&:hover': { color: NEON_GREEN, bgcolor: alpha(NEON_GREEN, 0.1) } }}
                                 >
@@ -326,7 +331,7 @@ export default function OverviewDemoPage() {
                                 myActiveQuestIds.map((id, index) => (
                                     <Zoom in key={`${id.toString()}-${refreshTrigger}`} timeout={500 + (index * 100)}>
                                         <Box>
-                                            <DynamicPlanDemoCard questId={id} onActionSuccess={handleActionSuccess} />
+                                            <DynamicPlanDemoCard questId={id} onActionSuccess={() => handleActionSuccess('Mission updated successfully!')} />
                                         </Box>
                                     </Zoom>
                                 ))
@@ -345,6 +350,18 @@ export default function OverviewDemoPage() {
                     </Stack>
                 </Fade>
             </Container>
+
+            <Snackbar
+                open={!!toastMessage}
+                autoHideDuration={4000}
+                onClose={() => setToastMessage('')}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert onClose={() => setToastMessage('')} severity="success" sx={{ width: '100%', bgcolor: '#000', color: NEON_GREEN, border: `1px solid ${NEON_GREEN}`, fontWeight: 800 }}>
+                    {toastMessage}
+                </Alert>
+            </Snackbar>
+
             <style jsx global>{`
                 @keyframes spin { 100% { transform: rotate(360deg); } }
             `}</style>
