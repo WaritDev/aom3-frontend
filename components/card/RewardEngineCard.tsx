@@ -8,6 +8,7 @@ import {
 } from '@mui/material';
 import BoltIcon from '@mui/icons-material/Bolt';
 import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 
 const NEON_GREEN = '#00E08F';
 const GOLD_COLOR = '#FFD700';
@@ -50,19 +51,21 @@ export const RewardEngineCard = () => {
                             <BoltIcon sx={{ color: NEON_GREEN, fontSize: 28 }} /> PROOF OF DISCIPLINE (PoD)
                         </Typography>
                         <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, mt: 0.5, display: 'block' }}>
-                            Your share = (Your DP / Total Network DP) × Reward Pool
+                            Your yield share = (Your DP / Total Network DP) × Reward Pool
                         </Typography>
                     </Box>
                     <Chip 
-                        label="DYNAMIC CALCULATION" 
+                        label="EXPONENTIAL GROWTH" 
                         size="small" 
+                        icon={<TrendingUpIcon sx={{ color: `${NEON_GREEN} !important` }} />}
                         sx={{ 
                             bgcolor: alpha(NEON_GREEN, 0.1), 
                             color: NEON_GREEN, 
                             fontWeight: 900, 
                             fontSize: '0.65rem',
                             letterSpacing: 1,
-                            borderRadius: 1.5
+                            borderRadius: 1.5,
+                            px: 1
                         }} 
                     />
                 </Stack>
@@ -71,12 +74,12 @@ export const RewardEngineCard = () => {
                     p: 3, 
                     bgcolor: isDark ? alpha(theme.palette.common.white, 0.03) : alpha(theme.palette.common.black, 0.02), 
                     borderRadius: 3, 
-                    mb: 4, 
+                    mb: 3, 
                     border: `1px dashed ${theme.palette.divider}`,
                     position: 'relative'
                 }}>
                     <Typography variant="overline" sx={{ color: 'text.disabled', fontWeight: 900, display: 'block', textAlign: 'center', mb: 1, letterSpacing: 2 }}>
-                        Discipline Points (DP) Algorithm
+                        Monthly Discipline Points (DP) Formula
                     </Typography>
                     <Typography 
                         variant="h5" 
@@ -86,19 +89,31 @@ export const RewardEngineCard = () => {
                             color: 'text.primary', 
                             fontFamily: 'monospace', 
                             letterSpacing: -0.5,
-                            fontSize: { xs: '1.1rem', sm: '1.5rem' }
+                            fontSize: { xs: '1rem', sm: '1.4rem' },
+                            mb: 2
                         }}
                     >
-                        {`DP = DEPOSIT × STREAK_MULT`}
+                        {`DP = DEPOSIT × PLAN_MULT × STREAK_MULT`}
                     </Typography>
+
+                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="center" sx={{ mt: 2 }}>
+                        <Box sx={{ bgcolor: alpha(NEON_GREEN, 0.1), p: 1.5, borderRadius: 2, flex: 1, textAlign: 'center', border: `1px solid ${alpha(NEON_GREEN, 0.2)}` }}>
+                            <Typography variant="caption" sx={{ color: NEON_GREEN, fontWeight: 900, display: 'block', mb: 0.5 }}>PLAN MULTIPLIER</Typography>
+                            <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 700, fontSize: '0.75rem' }}>Based on your locked duration (1.0x to 2.0x). See table below.</Typography>
+                        </Box>
+                        <Box sx={{ bgcolor: alpha(GOLD_COLOR, 0.1), p: 1.5, borderRadius: 2, flex: 1, textAlign: 'center', border: `1px solid ${alpha(GOLD_COLOR, 0.2)}` }}>
+                            <Typography variant="caption" sx={{ color: GOLD_COLOR, fontWeight: 900, display: 'block', mb: 0.5 }}>STREAK MULTIPLIER 🔥</Typography>
+                            <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 700, fontSize: '0.75rem' }}>Starts at 1.1x and grows by +0.1x every successful monthly deposit!</Typography>
+                        </Box>
+                    </Stack>
                 </Box>
 
                 <TableContainer component={Box} sx={{ bgcolor: 'transparent', boxShadow: 'none' }}>
                     <Table size="small">
                         <TableHead>
                             <TableRow sx={{ bgcolor: isDark ? alpha(theme.palette.common.white, 0.02) : alpha(theme.palette.common.black, 0.01) }}>
-                                <TableCell sx={headerCellStyle}>Streak Duration</TableCell>
-                                <TableCell sx={headerCellStyle}>Multiplier</TableCell>
+                                <TableCell sx={headerCellStyle}>Plan Duration</TableCell>
+                                <TableCell sx={headerCellStyle}>Plan Multiplier</TableCell>
                                 <TableCell sx={headerCellStyle}>Rank</TableCell>
                                 <TableCell sx={headerCellStyle} align="right">Reward Weight</TableCell>
                             </TableRow>
