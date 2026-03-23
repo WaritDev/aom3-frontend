@@ -29,7 +29,6 @@ export function useHL() {
     const [vaultEquity, setVaultEquity] = useState("0");
     const [vaultApr, setVaultApr] = useState(0);
     const [vaultPnl, setVaultPnl] = useState("0");
-
     const transport = useMemo(() => new HttpTransport({ isTestnet: true }), []);
 
     const refreshBalance = useCallback(async () => {
@@ -53,8 +52,11 @@ export function useHL() {
             }
 
             return (parseFloat(usdcBalance) + parseFloat(perpUsd)).toString();
-        } catch (e) {
-            console.error("Balance fetch error:", e);
+        } catch (err: unknown) {
+            const e = err as Error;
+            if (!e.message?.includes('Failed to fetch')) {
+                console.error("Balance fetch error:", e);
+            }
             return "0";
         }
     }, [address, transport]);
@@ -95,10 +97,15 @@ export function useHL() {
         const targetUsd = parseFloat(amount);
         let availableSpot = 0;
 
-        for (let i = 0; i < 5; i++) {
-            const spotState = await spotClearinghouseState({ transport }, { user: address as Hex });
-            availableSpot = parseFloat(spotState.balances.find(b => b.coin === 'USDC')?.total || "0");                
-            if (availableSpot >= targetUsd * 0.98) break; 
+        for (let i = 0; i < 8; i++) {
+            try {
+                const spotState = await spotClearinghouseState({ transport }, { user: address as Hex });
+                availableSpot = parseFloat(spotState.balances.find(b => b.coin === 'USDC')?.total || "0");                
+                if (availableSpot >= targetUsd * 0.95) break; 
+            } catch (err: unknown) {
+                const e = err as Error;
+                console.log("Waiting for spot state...", e.message);
+            }
             await new Promise(r => setTimeout(r, 2000));
         }
 
@@ -106,8 +113,7 @@ export function useHL() {
         const amountToBridge = Math.min(targetUsd, availableSpot - BRIDGE_FEE);
 
         if (amountToBridge <= 0) {
-            console.warn("Insufficient balance to cover bridge fee. Skipping bridge to", destination);
-            return false;
+            throw new Error("BRIDGE_AMOUNT_TOO_SMALL");
         }
 
         return await withdraw3(
@@ -138,12 +144,15 @@ export function useHL() {
 
     const executeQuestExit = useCallback(async (isMatured: boolean, principalAmount: number, penaltyAmount: number) => {
         if (!address) throw new Error("Wallet not connected");
+        console.log(`[HL Exit Initiated] Matured: ${isMatured}, Principal: ${principalAmount}, Estimated Penalty: ${penaltyAmount}`);
+        
         try {
             setIsAutoInvesting(true);
             const agentData = await ensureAgent();
             const agentWallet = privateKeyToAccount(agentData.privateKey as Hex);
             const currentPnl = Math.max(0, parseFloat(vaultPnl));
             const totalToWithdrawFromVault = principalAmount + currentPnl;
+            
             if (totalToWithdrawFromVault > 0) {
                 const vData = await vaultDetails({ transport }, { vaultAddress: VAULT_ADDRESS as Hex, user: address as Hex });
                 const actualEquity = parseFloat(vData?.followerState?.vaultEquity || "0");
@@ -160,21 +169,41 @@ export function useHL() {
 
             if (isMatured) {
                 const totalReturn = principalAmount + currentPnl;
-                if (totalReturn > 1.0) await bridgeToExternal(totalReturn.toString(), address);
+                try {
+                    await bridgeToExternal(totalReturn.toString(), address);
+                } catch (err: unknown) {
+                    const e = err as Error;
+                    if (e.message !== "BRIDGE_AMOUNT_TOO_SMALL") throw e;
+                }
             } else {
-                const userReturn = principalAmount - penaltyAmount;
-                const poolReturn = penaltyAmount + currentPnl;
-                if (userReturn > 1.0) await bridgeToExternal(userReturn.toString(), address);
+                const userReturn = principalAmount; 
+                const poolReturn = currentPnl;
+                
+                try {
+                    await bridgeToExternal(userReturn.toString(), address);
+                } catch (err: unknown) {
+                    const e = err as Error;
+                    if (e.message !== "BRIDGE_AMOUNT_TOO_SMALL") throw e;
+                }
                 
                 await new Promise(r => setTimeout(r, 2000));
                 
-                if (poolReturn > 1.0 && DISTRIBUTOR_ADDRESS) {
-                    await bridgeToExternal(poolReturn.toString(), DISTRIBUTOR_ADDRESS);
+                if (DISTRIBUTOR_ADDRESS && poolReturn > 1.0) {
+                    try {
+                        await bridgeToExternal(poolReturn.toString(), DISTRIBUTOR_ADDRESS);
+                    } catch (err: unknown) {
+                        const e = err as Error;
+                        console.warn("Skipped pool penalty transfer:", e.message); 
+                    }
                 }
             }
 
             await refreshBalance();
             return true;
+        } catch (err: unknown) {
+            const e = err as Error;
+            console.error("Hyperliquid Exit Error:", e);
+            throw new Error(e.message?.includes("Failed to fetch") ? "Network connection unstable. Please try again." : e.message);
         } finally {
             setIsAutoInvesting(false);
         }
