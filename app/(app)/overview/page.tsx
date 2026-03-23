@@ -17,7 +17,7 @@ import { createClient } from '@supabase/supabase-js';
 import { useAOM3 } from '@/hooks/useAOM3';
 import { useHL } from '@/hooks/useHL'; 
 import { useAccount, useReadContract } from 'wagmi'; 
-import { DynamicPlanDemoCard } from '@/components/card/DynamicPlanDemoCard'; 
+import { DynamicPlanCard } from '@/components/card/DynamicPlanCard'; 
 import { AOM3_VAULT_ADDRESS, AOM3_VAULT_ABI } from '@/constants/contracts';
 
 const NEON_GREEN = '#00E08F';
@@ -339,7 +339,7 @@ export default function OverviewDemoPage() {
                                 myActiveQuestIds.map((id, index) => (
                                     <Zoom in key={`${id.toString()}-${refreshTrigger}`} timeout={500 + (index * 100)}>
                                         <Box>
-                                            <DynamicPlanDemoCard questId={id} onActionSuccess={() => handleActionSuccess('Mission updated successfully!')} />
+                                            <DynamicPlanCard questId={id} onActionSuccess={() => handleActionSuccess('Mission updated successfully!')} />
                                         </Box>
                                     </Zoom>
                                 ))

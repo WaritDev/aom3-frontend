@@ -13,7 +13,8 @@ import MilitaryTechIcon from '@mui/icons-material/MilitaryTech';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import LockIcon from '@mui/icons-material/Lock';
+import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
+import EventBusyIcon from '@mui/icons-material/EventBusy';
 
 import { useAOM3 } from '@/hooks/useAOM3';
 import { useHL } from '@/hooks/useHL'; 
@@ -102,6 +103,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
     
     const [isProcessing, setIsProcessing] = useState(false);
     const [currentTime, setCurrentTime] = useState<number>(0);
+    const [currentDate, setCurrentDate] = useState<number>(0);
     const [modalConfig, setModalConfig] = useState<{ open: boolean; type: 'deposit' | 'withdraw'; }>({ open: false, type: 'deposit' });
     
     const [statusModal, setStatusModal] = useState<Omit<StatusModalProps, 'onClose'>>({
@@ -112,11 +114,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
 
     const { 
         runAutoDeposit, 
-        runAutoWithdraw, 
-        withdrawToWallet, 
-        withdrawAllYield, 
-        withdrawYieldToDistributor, 
-        vaultPnl 
+        executeQuestExit, 
     } = useHL();
 
     const { data: vaultTotalDPRaw } = useReadContract({
@@ -127,8 +125,13 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
     const systemTotalDP = vaultTotalDPRaw ? Number(vaultTotalDPRaw) : 0;
 
     useEffect(() => {
-        setCurrentTime(Math.floor(Date.now() / 1000));
-        const interval = setInterval(() => setCurrentTime(Math.floor(Date.now() / 1000)), 1000); 
+        const updateTime = () => {
+            const now = new Date();
+            setCurrentTime(Math.floor(now.getTime() / 1000));
+            setCurrentDate(now.getDate());
+        };
+        updateTime();
+        const interval = setInterval(updateTime, 1000); 
         return () => clearInterval(interval);
     }, []);
 
@@ -154,7 +157,15 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
     const totalDurationSec = Number(duration) * 30 * 24 * 60 * 60;
     const maturityTimestamp = Number(startTimestamp) + totalDurationSec;
     const isMatured = (currentTime >= maturityTimestamp) || (Number(currentStreak) >= Number(duration));
-    
+    const isDepositWindowOpen = currentDate >= 1 && currentDate <= 7;
+    const lastDepositDate = new Date(Number(lastDepositTimestamp) * 1000);
+    const nowDate = new Date(currentTime * 1000);
+    const isAlreadyDepositedThisMonth = 
+        lastDepositDate.getMonth() === nowDate.getMonth() && 
+        lastDepositDate.getFullYear() === nowDate.getFullYear();
+
+    const canDeposit = !isMatured && isDepositWindowOpen && !isAlreadyDepositedThisMonth;
+
     let currentPenaltyPct = 0;
     let penaltyAmount = 0;
     
@@ -166,40 +177,30 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
 
     const networkShare = systemTotalDP > 0 ? (Number(dp) / systemTotalDP) * 100 : 0;
 
-    const currentDateObj = new Date(currentTime * 1000);
-    const currentDay = currentDateObj.getDate();
-    const isWindowOpen = currentDay <= 7;
-    
-    const lastDepositDate = new Date(Number(lastDepositTimestamp) * 1000);
-    const hasDepositedThisMonth = 
-        lastDepositDate.getMonth() === currentDateObj.getMonth() && 
-        lastDepositDate.getFullYear() === currentDateObj.getFullYear();
-
-    const canDeposit = !isMatured && isWindowOpen && !hasDepositedThisMonth;
-
     let depositBtnText = "DEPOSIT NOW";
-    if (hasDepositedThisMonth) {
-        depositBtnText = "SYNCED THIS MONTH";
-    } else if (!isWindowOpen) {
-        depositBtnText = "LOCKED (OPENS 1ST)";
-    }
-    if (isProcessing && modalConfig.type === 'deposit') {
-        depositBtnText = "PROCESSING...";
+    if (isProcessing && modalConfig.type === 'deposit') depositBtnText = "PROCESSING...";
+
+    let depositTooltip = "Maintain your streak by depositing now.";
+    if (isMatured) {
+        depositTooltip = "Quest is already matured.";
+    } else if (isAlreadyDepositedThisMonth) {
+        depositTooltip = "You have already deposited for this month. See you next month!";
+    } else if (!isDepositWindowOpen) {
+        depositTooltip = "Deposit window is closed. Please come back between the 1st and 7th of the month.";
     }
 
     const handleConfirmAction = async () => {
         setModalConfig(prev => ({ ...prev, open: false }));
         setIsProcessing(true);
         
-        const hasYield = parseFloat(vaultPnl) > 0.5;
-        const currentTotalSteps = modalConfig.type === 'deposit' ? 2 : (hasYield ? 4 : 3);
+        const currentTotalSteps = 2; 
         const amountToReturn = isMatured ? totalDepNum : totalDepNum - penaltyAmount;
 
         setStatusModal({
             open: true, status: 'processing', step: 1, totalSteps: currentTotalSteps,
             message: modalConfig.type === 'deposit' 
                 ? `Step 1/${currentTotalSteps}: Signing Commitment on Arbitrum...` 
-                : `Step 1/${currentTotalSteps}: Recovering Principal ($${totalDepNum.toFixed(2)}) from HL Vault...`
+                : `Step 1/${currentTotalSteps}: Processing Withdrawals & Bridge Routing...`
         });
 
         try {
@@ -211,7 +212,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                 }
             } else {                
                 try {
-                    await runAutoWithdraw(totalDepNum.toString());
+                    await executeQuestExit(isMatured, totalDepNum, penaltyAmount);
                 } catch (innerErr: unknown) {
                     const error = innerErr as Error;
                     if (error.message?.toLowerCase().includes("lock")) {
@@ -220,28 +221,11 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                     throw innerErr;
                 }
 
-                setStatusModal(prev => ({ ...prev, step: 2, message: `Step 2/${currentTotalSteps}: Bridging funds back to your wallet...` }));
-                await withdrawToWallet(totalDepNum.toString());
-
-                if (hasYield) {
-                    setStatusModal(prev => ({ 
-                        ...prev, step: 3, 
-                        message: isMatured 
-                            ? `Step 3/${currentTotalSteps}: Recovering Profit ($${parseFloat(vaultPnl).toFixed(2)}) to your wallet...` 
-                            : `Step 3/${currentTotalSteps}: Distributing Yield to Savers Reward Pool...` 
-                    }));
-                    if (isMatured) {
-                        await withdrawAllYield();
-                    } else {
-                        await withdrawYieldToDistributor();
-                    }
-                }
-
-                const finalStepNum = currentTotalSteps;
                 setStatusModal(prev => ({ 
-                    ...prev, step: finalStepNum, 
-                    message: `Final Step: Recording On-chain Settlement on Arbitrum (Sign required)...` 
+                    ...prev, step: 2, 
+                    message: `Step 2/${currentTotalSteps}: Recording On-chain Settlement on Arbitrum (Sign required)...` 
                 }));
+                
                 await withdrawAction(Number(questId));
             }
 
@@ -251,7 +235,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                     ? 'Quest Updated! Your funds are earning yield.' 
                     : isMatured 
                         ? `Redeemed $${amountToReturn.toLocaleString()} successfully! Principal and Yield have been returned to your wallet.` 
-                        : `Exit Complete! $${amountToReturn.toLocaleString()} returned. You contributed $${penaltyAmount.toLocaleString()} (${currentPenaltyPct.toFixed(2)}%) + all yield to the Reward Pool. 🤝`
+                        : `Exit Complete! $${amountToReturn.toLocaleString()} returned. You forfeited all yield to the Reward Pool. 🤝`
             }));
             await refetch();
             onActionSuccess?.();
@@ -351,13 +335,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                                 </Tooltip>
                                 
                                 {!isMatured && (
-                                    <Tooltip title={
-                                        hasDepositedThisMonth 
-                                            ? "You have already completed your discipline for this month." 
-                                            : (!isWindowOpen 
-                                                ? "Deposit window is strictly open from the 1st to the 7th of each month." 
-                                                : "Maintain your streak by depositing now.")
-                                    }>
+                                    <Tooltip title={depositTooltip}>
                                         <span style={{ cursor: (!canDeposit && !isProcessing) ? 'not-allowed' : 'default' }}>
                                             <Button 
                                                 variant="contained" disabled={!canDeposit || isProcessing}
@@ -365,7 +343,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                                                 startIcon={
                                                     isProcessing && modalConfig.type === 'deposit' 
                                                         ? <CircularProgress size={16} color="inherit" /> 
-                                                        : (!isWindowOpen || hasDepositedThisMonth ? <LockIcon fontSize="small" /> : null)
+                                                        : null
                                                 }
                                                 sx={{ 
                                                     borderRadius: 2, px: 3, 
@@ -383,8 +361,39 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                                     </Tooltip>
                                 )}
                             </Stack>
+                            
+                            {!isMatured && (!isDepositWindowOpen || isAlreadyDepositedThisMonth) && (
+                                <Typography variant="caption" sx={{ color: 'text.disabled', display: 'flex', alignItems: 'center', justifyContent: { xs: 'flex-start', md: 'flex-end' }, gap: 0.5, mt: 1, fontWeight: 700 }}>
+                                    {isAlreadyDepositedThisMonth ? (
+                                        <><CheckCircleIcon sx={{ fontSize: 14, color: NEON_GREEN }} /> DEPOSITED FOR THIS MONTH</>
+                                    ) : (
+                                        <><EventBusyIcon sx={{ fontSize: 14 }} /> OPENS EVERY 1ST - 7TH</>
+                                    )}
+                                </Typography>
+                            )}
+
                         </Box>
                     </Stack>
+
+                    {isMatured && (
+                        <Box sx={{ 
+                            mt: 4, p: 2.5, borderRadius: 3, 
+                            bgcolor: alpha(NEON_GREEN, 0.08), 
+                            border: `1px dashed ${NEON_GREEN}`,
+                            display: 'flex', alignItems: 'center', gap: 2.5
+                        }}>
+                            <WorkspacePremiumIcon sx={{ color: NEON_GREEN, fontSize: 36, display: { xs: 'none', sm: 'block' } }} />
+                            <Box>
+                                <Typography variant="subtitle1" sx={{ color: NEON_GREEN, fontWeight: 900, letterSpacing: 0.5 }}>
+                                    QUEST COMPLETED! PENDING DP CLAIM
+                                </Typography>
+                                <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 600, mt: 0.5 }}>
+                                    You have successfully maintained your discipline. Please click <Box component="span" sx={{ color: NEON_GREEN, fontWeight: 800 }}>REDEEM FULL + YIELD</Box> to finalize your rank and officially claim your permanent Discipline Points (DP) on the Leaderboard.
+                                </Typography>
+                            </Box>
+                        </Box>
+                    )}
+
                 </CardContent>
             </Card>
 
