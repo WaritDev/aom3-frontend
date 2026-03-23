@@ -106,7 +106,9 @@ export default function OverviewDemoPage() {
             const dp = Number(quest.dp);
             const questId = BigInt(quest.quest_id);
 
-            active.push(questId);
+            if (quest.total_deposited > 0) {
+                active.push(questId);
+            }
             
             if (dp > 0) {
                 total += dp;
