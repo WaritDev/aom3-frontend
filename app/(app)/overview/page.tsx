@@ -4,7 +4,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { 
     Container, Typography, Box, Card, CardContent, Stack, 
     Button, Chip, Divider, CircularProgress,
-    Fade, Grow, Zoom, Tooltip, useTheme, alpha
+    Fade, Grow, Zoom, Tooltip, useTheme, alpha, Snackbar, Alert
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
@@ -12,42 +12,49 @@ import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
-import LockIcon from '@mui/icons-material/Lock';
 
+import { createClient } from '@supabase/supabase-js'; 
 import { useAOM3 } from '@/hooks/useAOM3';
 import { useHL } from '@/hooks/useHL'; 
-import { useAccount, useReadContracts, useReadContract } from 'wagmi';
-import { DynamicPlanCard } from '@/components/card/DynamicPlanCard';
+import { useAccount, useReadContract } from 'wagmi'; 
+import { DynamicPlanDemoCard } from '@/components/card/DynamicPlanDemoCard'; 
 import { AOM3_VAULT_ADDRESS, AOM3_VAULT_ABI } from '@/constants/contracts';
 
 const NEON_GREEN = '#00E08F';
 const GOLD_COLOR = '#FFD700';
 const NEON_ORANGE = '#FFA500';
-const THEME_DANGER = '#FF5252';
 
-type QuestResult = readonly [
-  `0x${string}`, // owner
-  bigint,        // monthlyAmount
-  bigint,        // totalDeposited
-  bigint,        // currentStreak
-  bigint,        // durationMonths
-  bigint,        // startTimestamp
-  bigint,        // lastDepositTimestamp
-  bigint,        // dp
-  boolean        // active
-];
+export interface QuestDB {
+    quest_id: number;
+    owner_address: string;
+    monthly_amount: number;
+    total_deposited: number;
+    current_streak: number;
+    duration_months: number;
+    start_timestamp: string;
+    last_deposit_timestamp: string;
+    dp: number;
+    is_active: boolean;
+}
 
-export default function OverviewPage() {
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export default function OverviewDemoPage() {
     const { address } = useAccount();
     const [isClaiming, setIsClaiming] = useState(false);    
     const [refreshTrigger, setRefreshTrigger] = useState(0);
-    const [currentDay, setCurrentDay] = useState<number | null>(null);
-    
+    const [myQuestsFromDB, setMyQuestsFromDB] = useState<QuestDB[]>([]);
+    const [isLoadingDB, setIsLoadingDB] = useState(true);
+    const [toastMessage, setToastMessage] = useState('');
+    const [isClaimDay, setIsClaimDay] = useState(false);
+
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
     
     const { 
-        nextQuestId, rewardPoolBalance, 
+        rewardPoolBalance, 
         claimRewardAction 
     } = useAOM3();
 
@@ -56,10 +63,6 @@ export default function OverviewPage() {
         isAutoInvesting, refreshBalance: refetchHL,
     } = useHL();
 
-    useEffect(() => {
-        setCurrentDay(new Date().getDate());
-    }, []);
-
     const { data: vaultTotalDPRaw, refetch: refetchVaultTotalDP } = useReadContract({
         address: AOM3_VAULT_ADDRESS as `0x${string}`,
         abi: AOM3_VAULT_ABI,
@@ -67,72 +70,74 @@ export default function OverviewPage() {
     });
     const systemTotalDP = vaultTotalDPRaw ? Number(vaultTotalDPRaw) : 0;
 
-    const questIds = useMemo(() => 
-        Array.from({ length: Number(nextQuestId || 0) }, (_, i) => BigInt(i)), 
-        [nextQuestId]
-    );
+    useEffect(() => {
+        const today = new Date().getDate();
+        setIsClaimDay(today === 1 || today === 16);
+    }, []);
 
-    const { data: allQuestsData, refetch: refetchQuests } = useReadContracts({
-        contracts: questIds.map(id => ({
-            address: AOM3_VAULT_ADDRESS as `0x${string}`,
-            abi: AOM3_VAULT_ABI,
-            functionName: 'quests',
-            args: [id],
-        }))
-    });
+    const fetchMyQuests = useCallback(async (isSilent = false) => {
+        if (!address) {
+            setMyQuestsFromDB([]);
+            if (!isSilent) setIsLoadingDB(false);
+            return;
+        }
+
+        if (!isSilent) setIsLoadingDB(true);
+        try {
+            const { data, error } = await supabase
+                .from('quests')
+                .select('*')
+                .eq('owner_address', address.toLowerCase())
+                .eq('is_active', true)
+                .order('dp', { ascending: false }); 
+
+            if (error) throw error;
+            if (data) setMyQuestsFromDB(data as QuestDB[]);
+        } catch (err) {
+            console.error("Error fetching quests from Supabase:", err);
+        } finally {
+            if (!isSilent) setIsLoadingDB(false);
+        }
+    }, [address]);
+
+    useEffect(() => {
+        fetchMyQuests();
+    }, [fetchMyQuests, refreshTrigger]);
 
     const { userTotalDP, myActiveQuestIds, myClaimableQuestIds } = useMemo(() => {
         let total = 0;
         const active: bigint[] = [];
         const claimable: bigint[] = [];
         
-        if (allQuestsData && address) {
-            allQuestsData.forEach((res, index) => {
-                if (res.status === 'success' && res.result) {
-                    const quest = res.result as unknown as QuestResult; 
-                    if (quest[0].toLowerCase() === address.toLowerCase()) {
-                        const dp = Number(quest[7]);
-                        const isActive = quest[8];
+        myQuestsFromDB.forEach((quest) => {
+            const dp = Number(quest.dp);
+            const questId = BigInt(quest.quest_id);
 
-                        if (dp > 0) {
-                            total += dp;
-                            claimable.push(BigInt(index));
-                        }
-
-                        if (isActive) {
-                            active.push(BigInt(index));
-                        }
-                    }
-                }
-            });
-        }
-        return { userTotalDP: total, myActiveQuestIds: active, myClaimableQuestIds: claimable };
-    }, [allQuestsData, address]);
-
-    const sortedActiveQuestIds = useMemo(() => {
-        if (!allQuestsData || myActiveQuestIds.length === 0) return [];
-        return [...myActiveQuestIds].sort((a, b) => {
-            const resA = allQuestsData[Number(a)];
-            const resB = allQuestsData[Number(b)];
-            if (resA.status === 'success' && resB.status === 'success') {
-                const qA = resA.result as unknown as QuestResult;
-                const qB = resB.result as unknown as QuestResult;
-                return Number(qB[7]) - Number(qA[7]);
+            if (quest.total_deposited > 0) {
+                active.push(questId);
             }
-            return 0;
+            
+            if (dp > 0) {
+                total += dp;
+                claimable.push(questId);
+            }
         });
-    }, [myActiveQuestIds, allQuestsData]);
+        
+        return { userTotalDP: total, myActiveQuestIds: active, myClaimableQuestIds: claimable };
+    }, [myQuestsFromDB]);
+
     const networkShare = systemTotalDP > 0 ? (userTotalDP / systemTotalDP) * 100 : 0;
     const estimatedReward = (networkShare / 100) * Number(rewardPoolBalance);
-    const isClaimDay = currentDay === 1 || currentDay === 16;
-    const isReady = currentDay !== null;
 
-    const handleActionSuccess = useCallback(async () => {
-        setRefreshTrigger(prev => prev + 1);
-        await refetchQuests();
-        await refetchVaultTotalDP();
-        await refetchHL();
-    }, [refetchQuests, refetchVaultTotalDP, refetchHL]);
+    const handleActionSuccess = useCallback(async (message?: string) => {
+        setTimeout(async () => {
+            setRefreshTrigger(prev => prev + 1);
+            await refetchVaultTotalDP();
+            await refetchHL();
+            
+            if (message) setToastMessage(message);
+        }, 2500); 
+    }, [refetchVaultTotalDP, refetchHL]);
 
     const handleClaimAll = async () => {
         if (myClaimableQuestIds.length === 0) return;
@@ -141,7 +146,7 @@ export default function OverviewPage() {
             for (const id of myClaimableQuestIds) {
                 try { await claimRewardAction(Number(id)); } catch (e) { console.error(e); }
             }
-            await handleActionSuccess();
+            await handleActionSuccess('Rewards claimed successfully! Data updated.');
         } finally {
             setIsClaiming(false);
         }
@@ -169,10 +174,11 @@ export default function OverviewPage() {
                         <Stack direction="row" spacing={2} alignItems="center">
                             <Tooltip title="Force Sync Data">
                                 <Button 
-                                    onClick={handleActionSuccess} 
+                                    onClick={() => handleActionSuccess('Data synced with network')} 
+                                    disabled={isLoadingDB}
                                     sx={{ minWidth: 0, p: 1, color: 'text.secondary', '&:hover': { color: NEON_GREEN, bgcolor: alpha(NEON_GREEN, 0.1) } }}
                                 >
-                                    <AutorenewIcon />
+                                    <AutorenewIcon sx={{ animation: isLoadingDB ? 'spin 1s linear infinite' : 'none' }} />
                                 </Button>
                             </Tooltip>
                         </Stack>
@@ -268,42 +274,27 @@ export default function OverviewPage() {
                                 </Box>
 
                                 <Box sx={{ textAlign: { xs: 'left', md: 'right' } }}>
-                                    <Tooltip title={!isReady ? "Loading..." : (!isClaimDay ? "Claiming is only available on the 1st and 16th of every month." : "")}>
-                                        <span>
-                                            <Button 
-                                                variant="contained" 
-                                                disabled={!isReady || !isClaimDay || isClaiming || myClaimableQuestIds.length === 0}
-                                                onClick={handleClaimAll}
-                                                startIcon={
-                                                    isClaiming 
-                                                        ? <CircularProgress size={16} color="inherit" /> 
-                                                        : (!isClaimDay && isReady ? <LockIcon fontSize="small" /> : <WorkspacePremiumIcon />)
-                                                }
-                                                sx={{ 
-                                                    bgcolor: GOLD_COLOR, 
-                                                    color: '#000', 
-                                                    fontWeight: 900, 
-                                                    borderRadius: 3, 
-                                                    px: 4, py: 2,
-                                                    boxShadow: isClaimDay && myClaimableQuestIds.length > 0 ? `0 8px 25px ${alpha(GOLD_COLOR, 0.4)}` : 'none',
-                                                    '&:hover': { bgcolor: '#FFC107', transform: 'translateY(-2px)' },
-                                                    '&:disabled': { bgcolor: alpha(theme.palette.divider, 0.1), color: 'text.disabled' },
-                                                    transition: 'all 0.2s ease'
-                                                }}
-                                            >
-                                                {isClaiming ? "SYNCING..." : (!isClaimDay && isReady ? "LOCKED (OPENS 1ST & 16TH)" : "CLAIM REWARDS")}
-                                            </Button>
-                                        </span>
-                                    </Tooltip>
-                                    
-                                    <Typography 
-                                        variant="caption" 
+                                    <Button 
+                                        variant="contained" 
+                                        disabled={!isClaimDay || isClaiming || myClaimableQuestIds.length === 0}
+                                        onClick={handleClaimAll}
+                                        startIcon={isClaiming ? <CircularProgress size={16} color="inherit" /> : <WorkspacePremiumIcon />}
                                         sx={{ 
-                                            display: 'block', mt: 1.5, fontWeight: 800,
-                                            color: isReady ? (isClaimDay ? NEON_GREEN : THEME_DANGER) : 'text.disabled'
+                                            bgcolor: GOLD_COLOR, 
+                                            color: '#000', 
+                                            fontWeight: 900, 
+                                            borderRadius: 3, 
+                                            px: 4, py: 2,
+                                            boxShadow: isClaimDay && myClaimableQuestIds.length > 0 ? `0 8px 25px ${alpha(GOLD_COLOR, 0.4)}` : 'none',
+                                            '&:hover': { bgcolor: '#FFC107', transform: 'translateY(-2px)' },
+                                            '&:disabled': { bgcolor: alpha(theme.palette.divider, 0.1), color: 'text.disabled' },
+                                            transition: 'all 0.2s ease'
                                         }}
                                     >
-                                        {!isReady ? "⏳ CHECKING WINDOW..." : (isClaimDay ? "✅ CLAIM WINDOW IS OPEN" : "🔒 OPENS ON THE 1ST & 16TH")}
+                                        {isClaiming ? "SYNCING..." : "CLAIM REWARDS"}
+                                    </Button>
+                                    <Typography variant="caption" sx={{ display: 'block', mt: 1.5, color: isClaimDay ? NEON_GREEN : NEON_ORANGE, fontWeight: 800 }}>
+                                        {isClaimDay ? "✅ CLAIM WINDOW IS OPEN" : "⏳ WINDOW OPENS ON THE 1ST & 16TH"}
                                     </Typography>
                                 </Box>
                             </Stack>
@@ -339,11 +330,16 @@ export default function OverviewPage() {
                         </Stack>
                         
                         <Stack spacing={3}>
-                            {sortedActiveQuestIds.length > 0 ? (
-                                sortedActiveQuestIds.map((id, index) => (
+                            {isLoadingDB ? (
+                                <Box sx={{ textAlign: 'center', py: 5 }}>
+                                    <CircularProgress sx={{ color: NEON_GREEN }} />
+                                    <Typography mt={2} color="text.secondary" fontWeight={700}>LOADING MISSIONS...</Typography>
+                                </Box>
+                            ) : myActiveQuestIds.length > 0 ? (
+                                myActiveQuestIds.map((id, index) => (
                                     <Zoom in key={`${id.toString()}-${refreshTrigger}`} timeout={500 + (index * 100)}>
                                         <Box>
-                                            <DynamicPlanCard questId={id} onActionSuccess={handleActionSuccess} />
+                                            <DynamicPlanDemoCard questId={id} onActionSuccess={() => handleActionSuccess('Mission updated successfully!')} />
                                         </Box>
                                     </Zoom>
                                 ))
@@ -362,6 +358,21 @@ export default function OverviewPage() {
                     </Stack>
                 </Fade>
             </Container>
+
+            <Snackbar
+                open={!!toastMessage}
+                autoHideDuration={4000}
+                onClose={() => setToastMessage('')}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert onClose={() => setToastMessage('')} severity="success" sx={{ width: '100%', bgcolor: '#000', color: NEON_GREEN, border: `1px solid ${NEON_GREEN}`, fontWeight: 800 }}>
+                    {toastMessage}
+                </Alert>
+            </Snackbar>
+
+            <style jsx global>{`
+                @keyframes spin { 100% { transform: rotate(360deg); } }
+            `}</style>
         </Box>
     );
 }
