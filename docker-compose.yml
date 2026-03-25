@@ -1,0 +1,29 @@
+services:
+  frontend:
+    image: node:20
+    container_name: aom3-frontend
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - HOSTNAME=0.0.0.0
+      - PORT=3000
+    env_file:
+      - .env
+    command: sh -c "npm install --legacy-peer-deps && npm run dev"
+    restart: unless-stopped
+
+  indexer:
+    image: node:20
+    container_name: aom3-indexer
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+    env_file:
+      - .env
+    command: sh -c "npm install --legacy-peer-deps && npx tsx indexer.ts"
+    restart: unless-stopped
