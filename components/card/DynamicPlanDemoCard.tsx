@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { formatUnits } from 'viem';
-import { useReadContract } from 'wagmi';
+import { useReadContract, useAccount } from 'wagmi';
 import { 
     Card, CardContent, Stack, Box, Typography, 
     LinearProgress, Button, Skeleton, Divider, Chip, Tooltip,
@@ -99,7 +99,8 @@ type QuestData = readonly [
 export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questId, onActionSuccess }) => {
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
-    
+    const { address } = useAccount();
+
     const [isProcessing, setIsProcessing] = useState(false);
     const [currentTime, setCurrentTime] = useState<number>(0);
     const [modalConfig, setModalConfig] = useState<{ open: boolean; type: 'deposit' | 'withdraw'; }>({ open: false, type: 'deposit' });
@@ -121,6 +122,13 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
         functionName: 'totalDisciplinePoints',
     });
     const systemTotalDP = vaultTotalDPRaw ? Number(vaultTotalDPRaw) : 0;
+
+    const { data: userTotalBalanceRaw } = useReadContract({
+        address: AOM3_VAULT_ADDRESS as `0x${string}`,
+        abi: AOM3_VAULT_ABI,
+        functionName: 'userBalance',
+        args: address ? [address] : undefined,
+    });
 
     useEffect(() => {
         setCurrentTime(Math.floor(Date.now() / 1000));
@@ -150,7 +158,8 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
     const totalDurationSec = Number(duration) * 30 * 24 * 60 * 60;
     const maturityTimestamp = Number(startTimestamp) + totalDurationSec;
     const isMatured = (currentTime >= maturityTimestamp) || (Number(currentStreak) >= Number(duration));
-    
+    const totalUserPrincipal = userTotalBalanceRaw ? Number(formatUnits(userTotalBalanceRaw as bigint, 6)) : totalDepNum;
+
     let currentPenaltyPct = 0;
     let penaltyAmount = 0;
     
@@ -189,7 +198,7 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
                 }
             } else {                
                 try {
-                    await executeQuestExit(isMatured, totalDepNum, penaltyAmount);
+                    await executeQuestExit(isMatured, totalDepNum, penaltyAmount, totalUserPrincipal);
                 } catch (innerErr: unknown) {
                     const error = innerErr as Error;
                     if (error.message?.toLowerCase().includes("lock")) {
