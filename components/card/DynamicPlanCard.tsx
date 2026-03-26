@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { formatUnits } from 'viem';
-import { useReadContract } from 'wagmi';
+import { useReadContract, useAccount } from 'wagmi';
 import { 
     Card, CardContent, Stack, Box, Typography, 
     LinearProgress, Button, Skeleton, Divider, Chip, Tooltip,
@@ -100,6 +100,7 @@ type QuestData = readonly [
 export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onActionSuccess }) => {
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
+    const { address } = useAccount();
     
     const [isProcessing, setIsProcessing] = useState(false);
     const [currentTime, setCurrentTime] = useState<number>(0);
@@ -119,6 +120,14 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
         functionName: 'totalDisciplinePoints',
     });
     const systemTotalDP = vaultTotalDPRaw ? Number(vaultTotalDPRaw) : 0;
+
+
+    const { data: userTotalBalanceRaw } = useReadContract({
+        address: AOM3_VAULT_ADDRESS as `0x${string}`,
+        abi: AOM3_VAULT_ABI,
+        functionName: 'userBalance',
+        args: address ? [address] : undefined,
+    });
 
     useEffect(() => {
         const updateTime = () => {
@@ -166,6 +175,8 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
             isBroken = true;
         }
     }
+
+    const totalUserPrincipal = userTotalBalanceRaw ? Number(formatUnits(userTotalBalanceRaw as bigint, 6)) : totalDepNum;
 
     const canDeposit = !isMatured && isDepositWindowOpen && !isAlreadyDepositedThisMonth && !isBroken;
 
@@ -217,7 +228,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                 }
             } else {                
                 try {
-                    await executeQuestExit(isMatured, totalDepNum, penaltyAmount);
+                    await executeQuestExit(isMatured, totalDepNum, penaltyAmount, totalUserPrincipal);
                 } catch (innerErr: unknown) {
                     const error = innerErr as Error;
                     if (error.message?.toLowerCase().includes("lock")) {

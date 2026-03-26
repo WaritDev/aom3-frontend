@@ -115,31 +115,61 @@ export function useHL() {
         }
     }, [address, walletClient, refreshBalance, transport]);
 
-    const executeQuestExit = useCallback(async (isMatured: boolean, principalAmount: number,) => {
+    const executeQuestExit = useCallback(async (isMatured: boolean, principalAmount: number, penaltyAmount: number, totalUserPrincipal?: number) => {
         if (!address || !walletClient) throw new Error("Wallet not connected");
         console.log(`[HL Exit] Matured: ${isMatured}, Principal: ${principalAmount}`);
         
         try {
             setIsAutoInvesting(true);
-            
             const vData = await vaultDetails({ transport }, { vaultAddress: VAULT_ADDRESS as Hex, user: address as Hex });
             const actualEquity = parseFloat(vData?.followerState?.vaultEquity || "0");
-            
-            const safeWithdrawAmount = Math.min(principalAmount, actualEquity);
+            const basePrincipalForYield = (totalUserPrincipal && totalUserPrincipal > 0) ? totalUserPrincipal : principalAmount;
+            const totalVaultYield = Math.max(0, actualEquity - basePrincipalForYield);
+            const yieldShareRatio = basePrincipalForYield > 0 ? (principalAmount / basePrincipalForYield) : 0;
+            const earnedYield = totalVaultYield * yieldShareRatio;
+            const safePrincipal = Math.min(principalAmount, actualEquity); 
+            const amountToWithdrawFromVault = safePrincipal + earnedYield;
 
-            if (safeWithdrawAmount > 0) {
+            if (amountToWithdrawFromVault > 0) {
                 await vaultTransfer({ transport, wallet: walletClient }, {
                     vaultAddress: VAULT_ADDRESS as Hex,
                     isDeposit: false,
-                    usd: Math.round(safeWithdrawAmount * 1e6) 
+                    usd: Math.round(amountToWithdrawFromVault * 1e6) 
                 });
 
                 await new Promise(r => setTimeout(r, 2000));
-                try {
-                    await bridgeToExternal(safeWithdrawAmount.toString(), address);
-                } catch (err: unknown) {
-                    const e = err as Error;
-                    if (e.message !== "BRIDGE_AMOUNT_TOO_SMALL") throw e;
+            }
+
+            if (isMatured) {
+                if (amountToWithdrawFromVault > 0) {
+                    try {
+                        await bridgeToExternal(amountToWithdrawFromVault.toString(), address);
+                        console.log(`✅ [Matured] Sent Principal + Yield ($${amountToWithdrawFromVault.toFixed(2)}) to User.`);
+                    } catch (err: unknown) {
+                        const e = err as Error;
+                        if (e.message !== "BRIDGE_AMOUNT_TOO_SMALL") throw e;
+                    }
+                }
+            } else {                
+                if (safePrincipal > 0) {
+                    try {
+                        await bridgeToExternal(safePrincipal.toString(), address);
+                        console.log(`⚠️ [Early Exit] Sent Principal ($${safePrincipal.toFixed(2)}) to User.`);
+                    } catch (err: unknown) {
+                        const e = err as Error;
+                        if (e.message !== "BRIDGE_AMOUNT_TOO_SMALL") throw e;
+                    }
+                }
+                
+                if (earnedYield > 0 && DISTRIBUTOR_ADDRESS) {
+                    await new Promise(r => setTimeout(r, 2000));
+                    try {
+                        await bridgeToExternal(earnedYield.toString(), DISTRIBUTOR_ADDRESS);
+                        console.log(`⚖️ [Forfeited] Sent Yield ($${earnedYield.toFixed(2)}) to Reward Pool.`);
+                    } catch (err: unknown) {
+                        const e = err as Error;
+                        console.warn("Skipped yield forfeit transfer:", e.message); 
+                    }
                 }
             }
 
