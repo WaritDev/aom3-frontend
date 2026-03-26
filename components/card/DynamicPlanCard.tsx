@@ -111,11 +111,7 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
     });
 
     const { syncQuestAction, withdrawAction } = useAOM3();
-
-    const { 
-        runAutoDeposit, 
-        executeQuestExit, 
-    } = useHL();
+    const { runAutoDeposit, executeQuestExit } = useHL();
 
     const { data: vaultTotalDPRaw } = useReadContract({
         address: AOM3_VAULT_ADDRESS as `0x${string}`,
@@ -160,11 +156,18 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
     const isDepositWindowOpen = currentDate >= 1 && currentDate <= 7;
     const lastDepositDate = new Date(Number(lastDepositTimestamp) * 1000);
     const nowDate = new Date(currentTime * 1000);
-    const isAlreadyDepositedThisMonth = 
-        lastDepositDate.getMonth() === nowDate.getMonth() && 
-        lastDepositDate.getFullYear() === nowDate.getFullYear();
+    const monthDiff = (nowDate.getFullYear() - lastDepositDate.getFullYear()) * 12 + (nowDate.getMonth() - lastDepositDate.getMonth());
+    const isAlreadyDepositedThisMonth = monthDiff === 0;
+    let isBroken = false;
+    if (!isMatured) {
+        if (monthDiff > 1) {
+            isBroken = true;
+        } else if (monthDiff === 1 && currentDate > 7) {
+            isBroken = true;
+        }
+    }
 
-    const canDeposit = !isMatured && isDepositWindowOpen && !isAlreadyDepositedThisMonth;
+    const canDeposit = !isMatured && isDepositWindowOpen && !isAlreadyDepositedThisMonth && !isBroken;
 
     let currentPenaltyPct = 0;
     let penaltyAmount = 0;
@@ -181,7 +184,9 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
     if (isProcessing && modalConfig.type === 'deposit') depositBtnText = "PROCESSING...";
 
     let depositTooltip = "Maintain your streak by depositing now.";
-    if (isMatured) {
+    if (isBroken) {
+        depositTooltip = "Deposit window has already passed. Quest failed.";
+    } else if (isMatured) {
         depositTooltip = "Quest is already matured.";
     } else if (isAlreadyDepositedThisMonth) {
         depositTooltip = "You have already deposited for this month. See you next month!";
@@ -249,47 +254,59 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
         <>
             <Card sx={{ 
                 bgcolor: 'background.paper',
-                border: `1px solid ${isMatured ? NEON_GREEN : theme.palette.divider}`, 
+                border: `1px solid ${isBroken ? NEON_RED : isMatured ? NEON_GREEN : theme.palette.divider}`, 
                 borderRadius: 4, position: 'relative', overflow: 'visible', transition: '0.3s',
                 backgroundImage: 'none',
-                '&:hover': { borderColor: NEON_GREEN, boxShadow: isDark ? `0 0 25px ${alpha(NEON_GREEN, 0.15)}` : `0 4px 20px ${alpha(NEON_GREEN, 0.1)}` }
+                '&:hover': { borderColor: isBroken ? NEON_RED : NEON_GREEN, boxShadow: isBroken ? `0 0 25px ${alpha(NEON_RED, 0.15)}` : isDark ? `0 0 25px ${alpha(NEON_GREEN, 0.15)}` : `0 4px 20px ${alpha(NEON_GREEN, 0.1)}` }
             }}>
                 <Box sx={{ position: 'absolute', top: -14, right: 24, zIndex: 1 }}>
-                    <Chip 
-                        icon={<MilitaryTechIcon sx={{ color: '#000 !important', fontSize: 18 }} />}
-                        label={`${Number(dp).toLocaleString()} DP`}
-                        sx={{ bgcolor: GOLD_COLOR, fontWeight: 900, color: '#000', px: 1, height: 28, boxShadow: `0 4px 15px ${alpha(GOLD_COLOR, 0.4)}` }}
-                    />
+                    {isBroken ? (
+                        <Chip 
+                            icon={<ErrorOutlineIcon sx={{ color: '#fff !important', fontSize: 18 }} />}
+                            label="STREAK BROKEN"
+                            sx={{ bgcolor: NEON_RED, fontWeight: 900, color: '#fff', px: 1, height: 28, boxShadow: `0 4px 15px ${alpha(NEON_RED, 0.4)}` }}
+                        />
+                    ) : (
+                        <Chip 
+                            icon={<MilitaryTechIcon sx={{ color: '#000 !important', fontSize: 18 }} />}
+                            label={`${Number(dp).toLocaleString()} DP`}
+                            sx={{ bgcolor: GOLD_COLOR, fontWeight: 900, color: '#000', px: 1, height: 28, boxShadow: `0 4px 15px ${alpha(GOLD_COLOR, 0.4)}` }}
+                        />
+                    )}
                 </Box>
 
                 <CardContent sx={{ p: 4 }}>
                     <Stack direction={{ xs: 'column', md: 'row' }} spacing={4}>
                         <Box sx={{ flex: 2 }}>
                             <Stack direction="row" spacing={1} alignItems="center" mb={1.5}>
-                                <Typography variant="h6" fontWeight="900" color="text.primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    {isMatured ? <CheckCircleIcon sx={{ color: NEON_GREEN }} /> : null}
-                                    {isMatured ? "STRATEGY MATURED" : "ACTIVE SAVINGS QUEST"}
+                                <Typography variant="h6" fontWeight="900" sx={{ color: isBroken ? NEON_RED : 'text.primary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    {isBroken ? <EventBusyIcon sx={{ color: NEON_RED }} /> : isMatured ? <CheckCircleIcon sx={{ color: NEON_GREEN }} /> : null}
+                                    {isBroken ? "QUEST FAILED: MISSED DEPOSIT" : isMatured ? "STRATEGY MATURED" : "ACTIVE SAVINGS QUEST"}
                                 </Typography>
-                                <Chip label={`Streak: ${currentStreak}/${duration} Months`} size="small" sx={{ bgcolor: alpha(NEON_GREEN, 0.1), color: NEON_GREEN, fontWeight: 800, borderRadius: 1.5 }} />
+                                <Chip label={`Streak: ${currentStreak}/${duration} Months`} size="small" sx={{ bgcolor: isBroken ? alpha(NEON_RED, 0.1) : alpha(NEON_GREEN, 0.1), color: isBroken ? NEON_RED : NEON_GREEN, fontWeight: 800, borderRadius: 1.5 }} />
                             </Stack>
 
                             <Box mb={2.5}>
                                 <Stack direction="row" justifyContent="space-between" mb={1}>
-                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>MATURITY PROGRESS</Typography>
+                                    <Typography variant="caption" sx={{ color: isBroken ? NEON_RED : 'text.secondary', fontWeight: 700 }}>
+                                        {isBroken ? "MATURITY PROGRESS (HALTED)" : "MATURITY PROGRESS"}
+                                    </Typography>
                                     <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 800 }}>{progress.toFixed(0)}%</Typography>
                                 </Stack>
-                                <LinearProgress variant="determinate" value={progress} sx={{ height: 8, borderRadius: 4, bgcolor: theme.palette.divider, '& .MuiLinearProgress-bar': { bgcolor: isMatured ? NEON_GREEN : NEON_ORANGE } }} />
+                                <LinearProgress variant="determinate" value={progress} sx={{ height: 8, borderRadius: 4, bgcolor: theme.palette.divider, '& .MuiLinearProgress-bar': { bgcolor: isBroken ? NEON_RED : isMatured ? NEON_GREEN : NEON_ORANGE } }} />
                             </Box>
 
                             <Stack direction="row" spacing={4}>
                                 <Box>
                                     <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block' }}>EST. NETWORK SHARE</Typography>
-                                    <Typography variant="body2" color="text.primary" fontWeight={800}>{networkShare.toFixed(2)}%</Typography>
+                                    <Typography variant="body2" color="text.primary" fontWeight={800} sx={{ textDecoration: isBroken ? 'line-through' : 'none' }}>{networkShare.toFixed(2)}%</Typography>
                                 </Box>
                                 <Box>
-                                    <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block' }}>MATURITY DATE</Typography>
-                                    <Typography variant="body2" color={isMatured ? NEON_GREEN : "text.primary"} fontWeight={800}>
-                                        {new Date(maturityTimestamp * 1000).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                                    <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block' }}>
+                                        {isBroken ? "STATUS" : "MATURITY DATE"}
+                                    </Typography>
+                                    <Typography variant="body2" color={isBroken ? NEON_RED : isMatured ? NEON_GREEN : "text.primary"} fontWeight={800}>
+                                        {isBroken ? "LOCKED" : new Date(maturityTimestamp * 1000).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                                     </Typography>
                                 </Box>
                             </Stack>
@@ -299,8 +316,10 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
 
                         <Box sx={{ flex: 1, textAlign: { xs: 'left', md: 'right' }, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                             <Box mb={3}>
-                                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, display: 'block' }}>{isMatured ? "TOTAL REDEEMABLE" : "EMERGENCY WITHDRAWAL"}</Typography>
-                                <Typography variant="h3" fontWeight="900" sx={{ color: isMatured ? NEON_GREEN : 'text.primary', letterSpacing: -1 }}>
+                                <Typography variant="caption" sx={{ color: isBroken ? NEON_RED : 'text.secondary', fontWeight: 700, display: 'block' }}>
+                                    {isBroken ? "EMERGENCY WITHDRAWAL ONLY" : isMatured ? "TOTAL REDEEMABLE" : "EMERGENCY WITHDRAWAL"}
+                                </Typography>
+                                <Typography variant="h3" fontWeight="900" sx={{ color: isBroken ? 'text.primary' : isMatured ? NEON_GREEN : 'text.primary', letterSpacing: -1 }}>
                                     ${(totalDepNum - penaltyAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </Typography>
                                 {!isMatured && (
@@ -322,8 +341,8 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                                             sx={{ 
                                                 borderRadius: 2, px: 3, 
                                                 bgcolor: isMatured ? NEON_GREEN : 'transparent',
-                                                borderColor: isMatured ? 'transparent' : NEON_RED, 
-                                                color: isMatured ? '#000' : NEON_RED, 
+                                                borderColor: isBroken ? NEON_RED : isMatured ? 'transparent' : NEON_RED, 
+                                                color: isBroken ? NEON_RED : isMatured ? '#000' : NEON_RED, 
                                                 fontWeight: 800,
                                                 '&:hover': isMatured ? { bgcolor: alpha(NEON_GREEN, 0.8) } : {},
                                                 '&.Mui-disabled': isMatured ? { bgcolor: alpha(NEON_GREEN, 0.3), color: '#000' } : {}
@@ -347,22 +366,21 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                                                 }
                                                 sx={{ 
                                                     borderRadius: 2, px: 3, 
-                                                    bgcolor: canDeposit ? NEON_GREEN : theme.palette.divider, 
+                                                    bgcolor: canDeposit ? NEON_GREEN : alpha(theme.palette.divider, 0.2), 
                                                     color: canDeposit ? '#000' : 'text.disabled', 
                                                     fontWeight: 900, 
                                                     boxShadow: canDeposit && !isProcessing ? `0 4px 15px ${alpha(NEON_GREEN, 0.4)}` : 'none',
                                                     '&:hover': { bgcolor: alpha(NEON_GREEN, 0.8) },
-                                                    '&.Mui-disabled': { bgcolor: alpha(NEON_GREEN, 0.2), color: 'text.disabled' }
                                                 }}
                                             >
-                                                {depositBtnText}
+                                                {isBroken ? "DEPOSIT LOCKED" : depositBtnText}
                                             </Button>
                                         </span>
                                     </Tooltip>
                                 )}
                             </Stack>
                             
-                            {!isMatured && (!isDepositWindowOpen || isAlreadyDepositedThisMonth) && (
+                            {!isMatured && !isBroken && (!isDepositWindowOpen || isAlreadyDepositedThisMonth) && (
                                 <Typography variant="caption" sx={{ color: 'text.disabled', display: 'flex', alignItems: 'center', justifyContent: { xs: 'flex-start', md: 'flex-end' }, gap: 0.5, mt: 1, fontWeight: 700 }}>
                                     {isAlreadyDepositedThisMonth ? (
                                         <><CheckCircleIcon sx={{ fontSize: 14, color: NEON_GREEN }} /> DEPOSITED FOR THIS MONTH</>
@@ -371,9 +389,27 @@ export const DynamicPlanCard: React.FC<DynamicPlanCardProps> = ({ questId, onAct
                                     )}
                                 </Typography>
                             )}
-
                         </Box>
                     </Stack>
+
+                    {isBroken && (
+                        <Box sx={{ 
+                            mt: 4, p: 2.5, borderRadius: 3, 
+                            bgcolor: alpha(NEON_RED, 0.08), 
+                            border: `1px dashed ${NEON_RED}`,
+                            display: 'flex', alignItems: 'center', gap: 2.5
+                        }}>
+                            <ErrorOutlineIcon sx={{ color: NEON_RED, fontSize: 36, display: { xs: 'none', sm: 'block' } }} />
+                            <Box>
+                                <Typography variant="subtitle1" sx={{ color: NEON_RED, fontWeight: 900, letterSpacing: 0.5 }}>
+                                    ACTION REQUIRED: DEPOSIT WINDOW MISSED (1ST - 7TH)
+                                </Typography>
+                                <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 600, mt: 0.5 }}>
+                                    You failed to deposit within the required timeframe. Your streak is broken and your current funds are locked in the vault. You must execute an <Box component="span" sx={{ color: NEON_RED, fontWeight: 800 }}>EMERGENCY EXIT</Box> to retrieve your remaining principal (minus penalties). Yield has been forfeit.
+                                </Typography>
+                            </Box>
+                        </Box>
+                    )}
 
                     {isMatured && (
                         <Box sx={{ 
