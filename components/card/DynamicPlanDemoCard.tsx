@@ -105,6 +105,8 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
     const [currentTime, setCurrentTime] = useState<number>(0);
     const [modalConfig, setModalConfig] = useState<{ open: boolean; type: 'deposit' | 'withdraw'; }>({ open: false, type: 'deposit' });
     
+    const [l1DepositCompleted, setL1DepositCompleted] = useState(false);
+
     const [statusModal, setStatusModal] = useState<Omit<StatusModalProps, 'onClose'>>({
         open: false, status: 'processing', step: 1, totalSteps: 1, message: ''
     });
@@ -191,11 +193,19 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
 
         try {
             if (modalConfig.type === 'deposit') {
-                const hash = await syncQuestAction(Number(questId), monthlyAmtStr); 
-                if (hash) {
-                    setStatusModal(prev => ({ ...prev, step: 2, message: `Step 2/${currentTotalSteps}: Deploying to HL Yield Strategy...` }));
-                    await runAutoDeposit(monthlyAmtStr);
+                if (!l1DepositCompleted) {
+                    const hash = await syncQuestAction(Number(questId), monthlyAmtStr); 
+                    if (!hash) {
+                        throw new Error("Transaction cancelled.");
+                    }
+                    setL1DepositCompleted(true);
                 }
+
+                setStatusModal(prev => ({ ...prev, step: 2, message: `Step 2/${currentTotalSteps}: Deploying to HL Yield Strategy...` }));
+                await runAutoDeposit(monthlyAmtStr);
+
+                setL1DepositCompleted(false);
+
             } else {                
                 try {
                     await executeQuestExit(isMatured, totalDepNum, penaltyAmount, totalUserPrincipal);
@@ -227,7 +237,22 @@ export const DynamicPlanDemoCard: React.FC<DynamicPlanDemoCardProps> = ({ questI
             onActionSuccess?.();
         } catch (outerErr: unknown) {
             const error = outerErr as Error;
-            setStatusModal(prev => ({ ...prev, status: 'error', message: error.message || "Transaction failed." }));
+            const isUserReject = error.message?.toLowerCase().includes("rejected") || error.message?.toLowerCase().includes("user denied");
+
+            let errorMsg = error.message || "Transaction failed.";
+            
+            // 🚩 แจ้งเตือนผู้ใช้ให้ถูกต้องตามสเต็ปที่พัง และใบ้ให้กดปุ่มเดิม
+            if (modalConfig.type === 'deposit' && l1DepositCompleted) {
+                errorMsg = isUserReject 
+                    ? "Vault deposit paused. Your funds are bridged safely. Click 'Deposit' again to finish step 2." 
+                    : "Hyperliquid deposit failed. Click the button again to retry.";
+            } else if (modalConfig.type === 'withdraw') {
+                errorMsg = isUserReject 
+                    ? "Transaction paused. Funds are safe. Click the button again to resume." 
+                    : error.message || "Transaction failed. You can safely click retry.";
+            }
+
+            setStatusModal(prev => ({ ...prev, status: 'error', message: errorMsg }));
         } finally { setIsProcessing(false); }
     };
 
