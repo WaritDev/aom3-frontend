@@ -63,6 +63,9 @@ export default function DepositPage() {
     
     const [isDeploying, setIsDeploying] = useState(false);
     const [statusStep, setStatusStep] = useState<0 | 1 | 2 | 3>(0);
+    
+    const [l1Completed, setL1Completed] = useState(false);
+    const [deployError, setDeployError] = useState<string | null>(null);
 
     const selectedDuration = useMemo(() => 
         DURATIONS.find(d => d.value === durationValue) || DURATIONS[1], 
@@ -94,6 +97,12 @@ export default function DepositPage() {
 
     const handleOpenTerms = () => {
         if (!isConnected || amountNum < 10 || amountNum > Number(walletBalance)) return;
+        
+        if (l1Completed) {
+            handleInitializeQuest();
+            return;
+        }
+
         setIsAccepted(false);
         setIsTermsOpen(true);
     };
@@ -105,25 +114,46 @@ export default function DepositPage() {
 
     const handleInitializeQuest = async () => {
         setIsDeploying(true);
-        setStatusStep(1);
+        setDeployError(null);
 
         try {
-            const hash = await createQuestAction(monthlyAmount, selectedDuration.value);
-            if (hash) {
-                setStatusStep(2);
-                await runAutoDeposit(monthlyAmount); 
-                setStatusStep(3);
-                await Promise.all([
-                    refetchWalletBalance(),
-                    refetchAOM3Balance(),
-                    refreshHLBalance()
-                ]);
-                setTimeout(() => router.push('/overview-demo'), 1500);
+            if (!l1Completed) {
+                setStatusStep(1);
+                const hash = await createQuestAction(monthlyAmount, selectedDuration.value);
+                if (!hash) {
+                    setIsDeploying(false);
+                    setStatusStep(0);
+                    return;
+                }
+                setL1Completed(true);
             }
-        } catch (error) {
+
+            setStatusStep(2);
+            await runAutoDeposit(monthlyAmount); 
+            
+            setStatusStep(3);
+            await Promise.all([
+                refetchWalletBalance(),
+                refetchAOM3Balance(),
+                refreshHLBalance()
+            ]);
+            setTimeout(() => router.push('/overview-demo'), 1500);
+
+        } catch (error: unknown) {
             console.error("Workflow Failed:", error);
-            setStatusStep(0);
+            const err = error as Error;
             setIsDeploying(false);
+            
+            const isUserReject = err.message?.toLowerCase().includes("rejected") || err.message?.toLowerCase().includes("user denied");
+
+            if (l1Completed) {
+                setDeployError(isUserReject 
+                    ? "Vault deposit paused. Your funds are bridged safely. Click the button again to finish step 2." 
+                    : "Hyperliquid deposit failed. Click the button again to retry.");
+            } else {
+                setDeployError(isUserReject ? "Transaction cancelled." : "Failed to create quest.");
+                setStatusStep(0);
+            }
         }
     };
 
@@ -182,6 +212,16 @@ export default function DepositPage() {
                 />
             </Box>
             </Fade>
+
+            {deployError && (
+                <Fade in>
+                    <Box sx={{ p: 2, borderRadius: 2, bgcolor: alpha(NEON_RED, 0.1), border: `1px solid ${NEON_RED}` }}>
+                        <Typography variant="body2" sx={{ color: NEON_RED, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <WarningAmberIcon fontSize="small" /> {deployError}
+                        </Typography>
+                    </Box>
+                </Fade>
+            )}
 
             <Fade in timeout={1200}>
             <Box>
